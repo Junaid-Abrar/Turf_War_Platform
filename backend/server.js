@@ -1,17 +1,24 @@
-const express = require('express'); // Import Express (think of this like importing 'package:flutter/material.dart')
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
 
-const app = express(); // Initialize the app
-const PORT = 3000; // The port our server will run on
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-// This is a "Route". It tells the server what to do when a specific URL is accessed.
-// '/' is the home path.
-// req (Request): Data coming FROM the user (or Flutter app).
-// res (Response): Data we send BACK to the user.
-app.get('/', (req, res) => {
-    res.send('Hello World! The Turf War Backend is alive.');
+app.use(express.json());
+
+mongoose.connect(process.env.MONGO_URI)
+.then(() => {
+    console.log('Connected to MongoDB Atlas');
+
+    app.listen(PORT, () => {
+        console.log('Server is running on https://localhost: ${PORT}');
+    });
+})  .catch((err) => {
+    console.error('❌ MongoDB Connection Error:', err);
+  });
+
+app.get('/', (req,res) => {
+    res.send('API is running>>>');
 });
 
-// Start the server and listen for connections
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
