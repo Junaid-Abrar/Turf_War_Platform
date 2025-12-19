@@ -3,6 +3,8 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 
+const { protect, authorize } = require('../middleware/auth');
+
 
 router.post('/register', async(req , res) => {
     try{
@@ -82,6 +84,27 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// ... (imports remain the same)
+// @route   GET /api/auth/me
+// @desc    Get current logged in user
+// @access  Private
+router.get('/me', protect, async (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: req.user
+  });
+});
+
+// @route   GET /api/auth/admin
+// @desc    Test Admin Only Route
+// @access  Private/Admin
+router.get('/admin', protect, authorize('admin'), (req, res) => {
+    res.status(200).json({ 
+        success: true, 
+        message: 'Welcome to the Admin Area, Boss!' 
+    });
 });
 
 module.exports = router; 
