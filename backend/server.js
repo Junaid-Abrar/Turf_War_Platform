@@ -5,6 +5,12 @@ const mongoose = require('mongoose');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Request Logger
+app.use((req, res, next) => {
+  console.log(`➡️  Received Request: ${req.method} ${req.url}`);
+  next();
+});
+
 const authRoutes = require('./routes/auth');
 
 // Middleware
@@ -17,8 +23,8 @@ mongoose.connect(process.env.MONGO_URI)
 .then(() => {
     console.log('✅ Connected to MongoDB Atlas');
 
-    app.listen(PORT, () => {
-        console.log(`🚀 Server is running on http://localhost:${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
     });
 })
 .catch((err) => {
