@@ -40,8 +40,8 @@ class AuthService {
       Uri.parse('$_authUrl${ApiConstants.loginEndpoint}'),
       headers: _headers,
       body: jsonEncode({
-        'email': email.trim(), // Trim whitespace
-        'password': password.trim(), // Trim whitespace
+        'email': email.trim(), 
+        'password': password.trim(), 
       }),
     );
 
@@ -51,6 +51,25 @@ class AuthService {
       return UserModel.fromJson(body['user'], token: body['token']);
     } else {
       throw Exception(body['error'] ?? 'Login failed');
+    }
+  }
+
+  // Get User Profile
+  Future<UserModel> getUserProfile(String token) async {
+    final headers = _headers;
+    headers['Authorization'] = 'Bearer $token';
+
+    final response = await http.get(
+      Uri.parse('$_authUrl/me'),
+      headers: headers,
+    );
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return UserModel.fromJson(body['data'], token: token);
+    } else {
+      throw Exception('Failed to load user');
     }
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/user_provider.dart';
 import 'register_screen.dart';
+import '../../home/screens/home_screen.dart'; // Import Home Screen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,11 +25,12 @@ class _LoginScreenState extends State<LoginScreen> {
           _emailController.text,
           _passwordController.text,
         );
-        // Navigate to Home (Placeholder)
+        
+        // Navigate to Home
         if (mounted) {
-             ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Login Successful!')),
-          );
+           Navigator.of(context).pushReplacement(
+             MaterialPageRoute(builder: (_) => const HomeScreen()),
+           );
         }
       } catch (e) {
         if (mounted) {

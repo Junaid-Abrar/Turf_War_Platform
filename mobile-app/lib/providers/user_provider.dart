@@ -32,10 +32,24 @@ class UserProvider extends ChangeNotifier {
   Future<void> register(String name, String email, String password) async {
     try {
       // For now, registration just creates account. User still needs to login.
-      // Or we can auto-login here if the API returned a token (which ours doesn't yet).
       await _authService.register(name, email, password);
     } catch (e) {
       rethrow;
+    }
+  }
+
+  // Auto Login Action
+  Future<bool> tryAutoLogin() async {
+    final token = await _storage.read(key: 'auth_token');
+    if (token == null) return false;
+
+    try {
+      final user = await _authService.getUserProfile(token);
+      _user = user;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 

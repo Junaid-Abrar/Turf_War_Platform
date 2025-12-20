@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/user_provider.dart';
-import 'features/auth/screens/login_screen.dart';
+import 'core/splash_screen.dart'; // Import Splash Screen
 
 void main() {
   runApp(const MyApp());
@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.green,
           useMaterial3: true,
         ),
-        home: const LoginScreen(),
+        home: const SplashScreen(), // Start with Splash
       ),
     );
   }
