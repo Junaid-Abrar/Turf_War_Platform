@@ -5,21 +5,23 @@ const mongoose = require('mongoose');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware (Must be BEFORE routes to parse JSON)
-app.use(express.json());
-
 // Request Logger (Now shows Body!)
 app.use((req, res, next) => {
   console.log(`➡️  Received Request: ${req.method} ${req.url}`);
-  if (Object.keys(req.body).length > 0) {
+  if (req.body && Object.keys(req.body).length > 0) {
     console.log('📦 Body:', JSON.stringify(req.body, null, 2));
   }
   next();
 });
 
+const venueRoutes = require('./routes/venues');
 const authRoutes = require('./routes/auth');
 
+// Middleware (Must be BEFORE routes to parse JSON)
+app.use(express.json());
+
 // Routes
+app.use('/api/venues', venueRoutes);
 app.use('/api/auth', authRoutes);
 
 mongoose.connect(process.env.MONGO_URI)
