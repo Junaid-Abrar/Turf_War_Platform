@@ -1,9 +1,11 @@
 const http = require('http');
 
-// 1. The User Data (Must match the one created earlier)
+// 1. The User Data
 const user = {
-  email: 'fresh.user@example.com',
-  password: 'freshpassword123'
+  name: 'Mobile User',
+  email: 'mobile@example.com', 
+  password: 'mobilepassword123',
+  role: 'user'
 };
 
 function sendRequest(path, payload, callback) {
@@ -40,10 +42,12 @@ function sendRequest(path, payload, callback) {
   req.end();
 }
 
-console.log('STEP: Logging In...');
-sendRequest('/api/auth/login', {
-  email: user.email,
-  password: user.password
+console.log('STEP 1: Registering User...');
+sendRequest('/api/auth/register', user, (res) => {
+  // Even if duplicate, proceed to login
+  console.log('\nSTEP 2: Logging In...');
+  sendRequest('/api/auth/login', {
+    email: user.email,
+    password: user.password
+  });
 });
-
-
