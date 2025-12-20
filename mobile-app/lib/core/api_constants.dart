@@ -11,4 +11,7 @@ class ApiConstants {
   static const String authEndpoint = '/auth';
   static const String registerEndpoint = '/register';
   static const String loginEndpoint = '/login';
+  
+  // Venue Endpoints
+  static const String venuesEndpoint = '/venues';
 }

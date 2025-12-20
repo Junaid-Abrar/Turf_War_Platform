@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/user_provider.dart';
-import 'core/splash_screen.dart'; // Import Splash Screen
+import 'providers/venue_provider.dart'; // Import VenueProvider
+import 'core/splash_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,6 +16,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => VenueProvider()), // Register it
       ],
       child: MaterialApp(
         title: 'Turf War',
@@ -22,7 +24,7 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.green,
           useMaterial3: true,
         ),
-        home: const SplashScreen(), // Start with Splash
+        home: const SplashScreen(),
       ),
     );
   }
