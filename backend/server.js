@@ -1,11 +1,16 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
+const fileupload = require('express-fileupload');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Request Logger (Now shows Body!)
+// 1. Core Middleware (Body Parsers)
+app.use(express.json()); // Parse JSON body
+app.use(fileupload({ useTempFiles: true })); // Parse Files
+
+// 2. Request Logger
 app.use((req, res, next) => {
   console.log(`➡️  Received Request: ${req.method} ${req.url}`);
   if (req.body && Object.keys(req.body).length > 0) {
@@ -14,16 +19,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// 3. Routes
 const venueRoutes = require('./routes/venues');
 const authRoutes = require('./routes/auth');
 
-// Middleware (Must be BEFORE routes to parse JSON)
-app.use(express.json());
-
-// Routes
 app.use('/api/venues', venueRoutes);
 app.use('/api/auth', authRoutes);
 
+// 4. Database Connection
 mongoose.connect(process.env.MONGO_URI)
 .then(() => {
     console.log('✅ Connected to MongoDB Atlas');

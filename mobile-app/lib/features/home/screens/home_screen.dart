@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../providers/user_provider.dart';
 import '../../../providers/venue_provider.dart';
 import '../../auth/screens/login_screen.dart';
+import 'add_venue_screen.dart'; // Import Add Screen
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,7 +16,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Fetch venues when screen loads
     Future.microtask(() => 
       Provider.of<VenueProvider>(context, listen: false).fetchVenues()
     );
@@ -41,6 +41,12 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const AddVenueScreen()));
+        },
+        child: const Icon(Icons.add),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -81,13 +87,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Placeholder for Image (since we don't have real images yet)
+                                    // Image
                                     Container(
                                       height: 150,
-                                      color: Colors.green.shade200,
-                                      child: const Center(
-                                        child: Icon(Icons.sports_soccer, size: 50, color: Colors.white),
-                                      ),
+                                      width: double.infinity,
+                                      color: Colors.grey[200],
+                                      child: venue.images.isNotEmpty
+                                        ? Image.network(
+                                            venue.images[0], 
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (ctx, err, stack) => const Icon(Icons.broken_image),
+                                          )
+                                        : const Center(
+                                            child: Icon(Icons.sports_soccer, size: 50, color: Colors.grey),
+                                          ),
                                     ),
                                     Padding(
                                       padding: const EdgeInsets.all(12.0),

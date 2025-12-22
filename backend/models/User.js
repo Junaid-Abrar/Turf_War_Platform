@@ -31,12 +31,15 @@ const userSchema = new mongoose.Schema({
   timestamps: true // Automatically creates 'createdAt' and 'updatedAt' fields
 });
 
-userSchema.pre('save', async function(next){
+// REMOVE 'next' - Mongoose supports pure async/await
+userSchema.pre('save', async function() {
     if(!this.isModified('password')) {
-        next();
+        return;
     }
+    
+    // Hash password
     const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt)
+    this.password = await bcrypt.hash(this.password, salt);
 });
 
 userSchema.methods.matchPassword = async function(
