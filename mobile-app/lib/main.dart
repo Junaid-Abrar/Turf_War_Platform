@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/user_provider.dart';
-import 'providers/venue_provider.dart'; // Import VenueProvider
+import 'providers/venue_provider.dart';
+import 'providers/booking_provider.dart'; // Import BookingProvider
 import 'core/splash_screen.dart';
 
 void main() {
@@ -16,7 +17,8 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => UserProvider()),
-        ChangeNotifierProvider(create: (_) => VenueProvider()), // Register it
+        ChangeNotifierProvider(create: (_) => VenueProvider()),
+        ChangeNotifierProvider(create: (_) => BookingProvider()), // Register BookingProvider
       ],
       child: MaterialApp(
         title: 'Turf War',

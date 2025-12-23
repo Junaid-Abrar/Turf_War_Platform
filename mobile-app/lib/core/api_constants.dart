@@ -1,5 +1,3 @@
-import 'dart:io';
-
 class ApiConstants {
   // Use the Ngrok URL for reliable connectivity
   static const String _tunnelUrl =
@@ -15,4 +13,7 @@ class ApiConstants {
 
   // Venue Endpoints
   static const String venuesEndpoint = '/venues';
+
+  // Booking Endpoints
+  static const String bookingsEndpoint = '/bookings';
 }
