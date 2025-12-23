@@ -22,9 +22,11 @@ app.use((req, res, next) => {
 // 3. Routes
 const venueRoutes = require('./routes/venues');
 const authRoutes = require('./routes/auth');
+const bookingRoutes = require('./routes/bookings'); // Import
 
 app.use('/api/venues', venueRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/bookings', bookingRoutes); // Use
 
 // 4. Database Connection
 mongoose.connect(process.env.MONGO_URI)
