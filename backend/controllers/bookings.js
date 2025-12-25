@@ -66,7 +66,37 @@ exports.getMyBookings = async (req, res) => {
   }
 };
 
-// @desc    Get bookings for a venue (to check availability)
+// @desc    Get bookings for venues owned by the logged-in user
+// @route   GET /api/bookings/owner
+// @access  Private (Owner/Admin)
+exports.getOwnerBookings = async (req, res) => {
+  try {
+    // 1. Find venues owned by this user
+    const venues = await Venue.find({ owner: req.user.id });
+    
+    if (!venues.length) {
+      return res.status(200).json({ success: true, count: 0, data: [] });
+    }
+
+    const venueIds = venues.map(v => v._id);
+
+    // 2. Find bookings for these venues
+    const bookings = await Booking.find({ venue: { $in: venueIds } })
+      .populate('user', 'name email')
+      .populate('venue', 'name')
+      .sort({ date: -1, startTime: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: bookings.length,
+      data: bookings
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Server Error' });
+  }
+};
+
 // @route   GET /api/bookings/venue/:venueId
 // @access  Public
 exports.getVenueBookings = async (req, res) => {
