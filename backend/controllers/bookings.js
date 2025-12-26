@@ -1,5 +1,7 @@
 const Booking = require('../models/Booking');
 const Venue = require('../models/Venue');
+const User = require('../models/User'); // Import User
+const { sendNotification } = require('../config/firebase'); // Import Notification utility
 
 // @desc    Create a booking
 // @route   POST /api/bookings
@@ -9,7 +11,7 @@ exports.createBooking = async (req, res) => {
     const { venueId, date, startTime, endTime, price } = req.body;
 
     // 1. Check if venue exists
-    const venue = await Venue.findById(venueId);
+    const venue = await Venue.findById(venueId).populate('owner');
     if (!venue) {
       return res.status(404).json({ success: false, error: 'Venue not found' });
     }
@@ -35,6 +37,27 @@ exports.createBooking = async (req, res) => {
       endTime,
       price
     });
+
+    // 4. Send Notifications (Don't wait for them to finish)
+    // Notify User
+    User.findById(req.user.id).then(user => {
+      if (user && user.fcmToken) {
+        sendNotification(
+          user.fcmToken,
+          'Booking Confirmed!',
+          `You have successfully booked ${venue.name} for ${date} at ${startTime}.`
+        );
+      }
+    });
+
+    // Notify Venue Owner
+    if (venue.owner && venue.owner.fcmToken) {
+      sendNotification(
+        venue.owner.fcmToken,
+        'New Booking Received',
+        `${req.user.name || 'A customer'} has booked ${venue.name} for ${date} at ${startTime}.`
+      );
+    }
 
     res.status(201).json({
       success: true,

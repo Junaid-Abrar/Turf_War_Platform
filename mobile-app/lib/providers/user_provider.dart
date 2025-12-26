@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user_model.dart';
 import '../features/auth/services/auth_service.dart';
+import '../core/notification_service.dart'; // Import
 
 class UserProvider extends ChangeNotifier {
   UserModel? _user;
   final AuthService _authService = AuthService();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final NotificationService _notificationService = NotificationService(); // Add
 
   UserModel? get user => _user;
   bool get isAuthenticated => _user != null;
@@ -21,6 +23,9 @@ class UserProvider extends ChangeNotifier {
       if (user.token != null) {
         await _storage.write(key: 'auth_token', value: user.token);
       }
+      
+      // Sync FCM Token
+      _notificationService.init();
       
       notifyListeners();
     } catch (e) {
@@ -46,6 +51,10 @@ class UserProvider extends ChangeNotifier {
     try {
       final user = await _authService.getUserProfile(token);
       _user = user;
+      
+      // Sync FCM Token
+      _notificationService.init();
+      
       notifyListeners();
       return true;
     } catch (e) {

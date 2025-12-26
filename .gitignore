@@ -1,2 +1,4 @@
 GEMINI.md
 .env
+backend/config/service-account.json
+mobile-app/android/app/google-services.json

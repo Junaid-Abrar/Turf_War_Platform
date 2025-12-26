@@ -97,14 +97,42 @@ router.get('/me', protect, async (req, res) => {
   });
 });
 
-// @route   GET /api/auth/admin
-// @desc    Test Admin Only Route
-// @access  Private/Admin
-router.get('/admin', protect, authorize('admin'), (req, res) => {
-    res.status(200).json({ 
-        success: true, 
-        message: 'Welcome to the Admin Area, Boss!' 
+// @route   PUT /api/auth/fcm-token
+
+// @desc    Update FCM Token for notifications
+
+// @access  Private
+
+router.put('/fcm-token', protect, async (req, res) => {
+
+  try {
+
+    const { fcmToken } = req.body;
+
+    
+
+    await User.findByIdAndUpdate(req.user.id, { fcmToken });
+
+
+
+    res.status(200).json({
+
+      success: true,
+
+      message: 'FCM Token updated'
+
     });
+
+  } catch (err) {
+
+    res.status(500).json({ success: false, error: err.message });
+
+  }
+
 });
 
+
+
 module.exports = router; 
+
+ 

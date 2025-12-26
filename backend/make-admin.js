@@ -2,7 +2,9 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const User = require('./models/User');
 
-const emailToPromote = 'jd@gmail.com'; // CHANGE THIS if you are logged in as someone else
+const emailToPromote = 'jd@gmail.com
+
+'; // CHANGE THIS if you are logged in as someone else
 const newRole = 'admin';
 
 const promoteUser = async () => {

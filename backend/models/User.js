@@ -22,11 +22,18 @@ const userSchema = new mongoose.Schema({
     select: false
     
   },
-  role: {
-    type: String,
-    enum: ['user', 'admin', 'venue_owner'],
-    default: 'user'
-  }
+    role: {
+        type: String,
+        enum: ['user', 'venue_owner', 'admin'],
+        default: 'user'
+    },
+    fcmToken: {
+        type: String,
+        default: null
+    },
+    createdAt: {
+        type: Date,
+
 }, {
   timestamps: true // Automatically creates 'createdAt' and 'updatedAt' fields
 });
