@@ -9,6 +9,7 @@ class BookingModel {
   final String endTime;
   final double price;
   final String status;
+  final String paymentStatus; // Add
   final DateTime createdAt;
 
   BookingModel({
@@ -20,6 +21,7 @@ class BookingModel {
     required this.endTime,
     required this.price,
     required this.status,
+    required this.paymentStatus, // Add
     required this.createdAt,
   });
 
@@ -35,6 +37,7 @@ class BookingModel {
       endTime: json['endTime'] ?? '',
       price: (json['price'] ?? 0).toDouble(),
       status: json['status'] ?? 'pending',
+      paymentStatus: json['paymentStatus'] ?? 'unpaid', // Add
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),

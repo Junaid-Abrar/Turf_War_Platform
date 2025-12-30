@@ -37,6 +37,7 @@ const BookingList = () => {
             <th>Date</th>
             <th>Time</th>
             <th>Status</th>
+            <th>Payment</th>
             <th>Price</th>
           </tr>
         </thead>
@@ -55,6 +56,13 @@ const BookingList = () => {
                   bg={booking.status === 'confirmed' ? 'success' : booking.status === 'cancelled' ? 'danger' : 'warning'}
                 >
                   {booking.status}
+                </Badge>
+              </td>
+              <td>
+                <Badge 
+                  bg={booking.paymentStatus === 'paid' ? 'success' : 'secondary'}
+                >
+                  {booking.paymentStatus || 'unpaid'}
                 </Badge>
               </td>
               <td className="fw-bold">${booking.price}</td>

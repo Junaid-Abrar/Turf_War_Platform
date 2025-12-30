@@ -6,6 +6,7 @@ class VenueModel {
   final double pricePerHour;
   final List<String> images;
   final List<String> amenities;
+  final String ownerId; // Add
 
   VenueModel({
     required this.id,
@@ -15,6 +16,7 @@ class VenueModel {
     required this.pricePerHour,
     required this.images,
     required this.amenities,
+    required this.ownerId, // Add
   });
 
   factory VenueModel.fromJson(Map<String, dynamic> json) {
@@ -27,6 +29,7 @@ class VenueModel {
       pricePerHour: (json['pricePerHour'] ?? 0).toDouble(),
       images: List<String>.from(json['images'] ?? []),
       amenities: List<String>.from(json['amenities'] ?? []),
+      ownerId: json['owner'] is Map ? json['owner']['_id'] : (json['owner'] ?? ''), // Add
     );
   }
 }

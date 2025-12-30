@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../models/venue_model.dart';
 import '../../../providers/booking_provider.dart';
+import '../../../providers/payment_provider.dart'; // Add
 
 class BookingScreen extends StatefulWidget {
   final VenueModel venue;
@@ -66,7 +67,7 @@ class _BookingScreenState extends State<BookingScreen> {
       final hour = int.parse(startTime.split(':')[0]);
       final endTime = '${(hour + 1).toString().padLeft(2, '0')}:00';
 
-      await Provider.of<BookingProvider>(context, listen: false).bookVenue(
+      final booking = await Provider.of<BookingProvider>(context, listen: false).bookVenue(
         venueId: widget.venue.id,
         date: dateStr,
         startTime: startTime,
@@ -75,22 +76,39 @@ class _BookingScreenState extends State<BookingScreen> {
       );
 
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Success'),
-            content: const Text('Your booking has been confirmed!'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop(); // Pop dialog
-                  Navigator.of(context).pop(); // Pop BookingScreen
-                },
-                child: const Text('OK'),
-              )
-            ],
-          ),
-        );
+        // Proceed to Payment
+        try {
+          await Provider.of<PaymentProvider>(context, listen: false).makePayment(
+            context: context,
+            bookingId: booking.id,
+          );
+          
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Success'),
+                content: const Text('Your booking has been confirmed and paid!'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop(); // Pop dialog
+                      Navigator.of(context).pop(); // Pop BookingScreen
+                    },
+                    child: const Text('OK'),
+                  )
+                ],
+              ),
+            );
+          }
+        } catch (paymentError) {
+           if (mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               SnackBar(content: Text('Payment failed, but booking is saved. Please pay from "My Bookings": $paymentError')),
+             );
+             Navigator.of(context).pop();
+           }
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -104,6 +122,7 @@ class _BookingScreenState extends State<BookingScreen> {
   @override
   Widget build(BuildContext context) {
     final bookingProvider = Provider.of<BookingProvider>(context);
+    final paymentProvider = Provider.of<PaymentProvider>(context); // Add
 
     return Scaffold(
       appBar: AppBar(title: const Text('Select Slot')),
@@ -218,15 +237,15 @@ class _BookingScreenState extends State<BookingScreen> {
                   ],
                 ),
                 ElevatedButton(
-                  onPressed: (_selectedSlot == null || bookingProvider.isLoading) ? null : _handleBooking,
+                  onPressed: (_selectedSlot == null || bookingProvider.isLoading || paymentProvider.isLoading) ? null : _handleBooking,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                   ),
-                  child: bookingProvider.isLoading 
+                  child: (bookingProvider.isLoading || paymentProvider.isLoading)
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Confirm'),
+                    : const Text('Book & Pay'),
                 ),
               ],
             ),

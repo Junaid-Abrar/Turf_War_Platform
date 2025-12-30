@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../models/venue_model.dart';
-import 'booking_screen.dart'; // We will create this next
+import 'booking_screen.dart';
+import 'chat_screen.dart'; // Add
 
 class VenueDetailsScreen extends StatelessWidget {
   final VenueModel venue;
@@ -83,17 +84,47 @@ class VenueDetailsScreen extends StatelessWidget {
           color: Colors.white,
           boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -5))],
         ),
-        child: ElevatedButton(
-          onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => BookingScreen(venue: venue)));
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(double.infinity, 50),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: const Text('Book Now', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 1,
+              child: OutlinedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(
+                      builder: (_) => ChatScreen(
+                        receiverId: venue.ownerId, 
+                        receiverName: 'Owner' // Ideally we fetch the real name
+                      )
+                    )
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.green),
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Icon(Icons.chat, color: Colors.green),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 3,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => BookingScreen(venue: venue)));
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Book Now', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
         ),
       ),
     );

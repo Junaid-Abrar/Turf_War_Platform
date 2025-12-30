@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'providers/user_provider.dart';
 import 'providers/venue_provider.dart';
 import 'providers/booking_provider.dart';
+import 'providers/payment_provider.dart'; // Add
 import 'core/splash_screen.dart';
 import 'core/notification_service.dart';
 
@@ -18,6 +20,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   
+  // Initialize Stripe
+  Stripe.publishableKey = "pk_test_placeholder";
+  await Stripe.instance.applySettings();
+
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   runApp(const MyApp());
@@ -46,6 +52,7 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => VenueProvider()),
         ChangeNotifierProvider(create: (_) => BookingProvider()),
+        ChangeNotifierProvider(create: (_) => PaymentProvider()), // Add
       ],
       child: MaterialApp(
         title: 'Turf War',

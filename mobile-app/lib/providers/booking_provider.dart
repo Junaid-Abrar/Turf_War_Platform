@@ -35,7 +35,7 @@ class BookingProvider extends ChangeNotifier {
   }
 
   // Create a new booking
-  Future<void> bookVenue({
+  Future<BookingModel> bookVenue({
     required String venueId,
     required String date,
     required String startTime,
@@ -60,6 +60,7 @@ class BookingProvider extends ChangeNotifier {
 
       _myBookings.insert(0, newBooking); // Add to top of list
       notifyListeners();
+      return newBooking; // Return the model
     } catch (e) {
       rethrow;
     } finally {

@@ -30,7 +30,15 @@ const bookingSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['pending', 'confirmed', 'cancelled'],
-    default: 'confirmed' // Auto-confirm for now until we add payments
+    default: 'pending'
+  },
+  paymentStatus: {
+    type: String,
+    enum: ['unpaid', 'paid', 'failed'],
+    default: 'unpaid'
+  },
+  stripePaymentIntentId: {
+    type: String
   }
 }, {
   timestamps: true

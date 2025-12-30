@@ -16,4 +16,7 @@ class ApiConstants {
 
   // Booking Endpoints
   static const String bookingsEndpoint = '/bookings';
+
+  // Payment Endpoints
+  static const String paymentsEndpoint = '/payments';
 }
