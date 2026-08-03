@@ -16,19 +16,24 @@ exports.createBooking = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Venue not found' });
     }
 
-    // 2. Check for conflicts (Is slot already taken?)
+    // 2. Prevent owner from booking their own venue
+    if (venue.owner._id.toString() === req.user.id) {
+      return res.status(400).json({ success: false, error: 'You cannot book your own venue' });
+    }
+
+    // 3. Check for conflicts (Is slot already taken? Block both confirmed AND pending)
     const existingBooking = await Booking.findOne({
       venue: venueId,
       date: date,
       startTime: startTime,
-      status: 'confirmed'
+      status: { $in: ['confirmed', 'pending'] }
     });
 
     if (existingBooking) {
       return res.status(400).json({ success: false, error: 'Slot already booked' });
     }
 
-    // 3. Create Booking
+    // 4. Create Booking
     const booking = await Booking.create({
       user: req.user.id,
       venue: venueId,

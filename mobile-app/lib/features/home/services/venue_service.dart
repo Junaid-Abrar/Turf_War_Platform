@@ -103,7 +103,8 @@ class VenueService {
     String description, 
     String location, 
     double price, 
-    File imageFile
+    File imageFile,
+    [List<String> amenities = const []]
   ) async {
     final uri = Uri.parse(_venuesUrl);
     final request = http.MultipartRequest('POST', uri);
@@ -119,6 +120,10 @@ class VenueService {
     request.fields['description'] = description;
     request.fields['location'] = location;
     request.fields['pricePerHour'] = price.toString();
+    // Send amenities as JSON array string
+    if (amenities.isNotEmpty) {
+      request.fields['amenities'] = jsonEncode(amenities);
+    }
 
     // File
     final pic = await http.MultipartFile.fromPath('photo', imageFile.path);

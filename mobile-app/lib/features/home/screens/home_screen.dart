@@ -149,12 +149,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const AddVenueScreen()));
-        },
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: (user?.role == 'venue_owner' || user?.role == 'admin')
+          ? FloatingActionButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const AddVenueScreen()));
+              },
+              child: const Icon(Icons.add),
+            )
+          : null,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

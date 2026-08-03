@@ -75,6 +75,7 @@ class VenueProvider extends ChangeNotifier {
     required String location,
     required double price,
     required File imageFile,
+    List<String> amenities = const [],
   }) async {
     try {
       final token = await _storage.read(key: 'auth_token');
@@ -82,7 +83,7 @@ class VenueProvider extends ChangeNotifier {
 
       // Call Service
       final newVenue = await _venueService.createVenue(
-        token, name, description, location, price, imageFile
+        token, name, description, location, price, imageFile, amenities
       );
 
       // Add to local list immediately (Optimistic UI update)

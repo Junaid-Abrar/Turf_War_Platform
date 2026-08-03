@@ -7,7 +7,8 @@ import BookingList from '../components/BookingList';
 import ChatSystem from '../components/ChatSystem';
 import AnalyticsDashboard from '../components/AnalyticsDashboard'; // Add
 import AddVenueModal from '../components/AddVenueModal';
-import { PlusCircle, LayoutGrid, Calendar, MessageSquare, BarChart2 } from 'lucide-react'; // Add icon
+import UserManagement from '../components/UserManagement';
+import { PlusCircle, LayoutGrid, Calendar, MessageSquare, BarChart2, Users } from 'lucide-react'; // Add icon
 
 const Dashboard = () => {
   const { logout, user } = useContext(AuthContext);
@@ -53,17 +54,22 @@ const Dashboard = () => {
 
         <Tabs defaultActiveKey="overview" className="mb-4">
           <Tab eventKey="overview" title={<><BarChart2 size={16} className="me-1"/> Overview</>}>
-            <AnalyticsDashboard />
+            <AnalyticsDashboard refreshTrigger={refreshKey} />
           </Tab>
           <Tab eventKey="venues" title={<><LayoutGrid size={16} className="me-1"/> Venues</>}>
             <VenueList refreshTrigger={refreshKey} />
           </Tab>
           <Tab eventKey="bookings" title={<><Calendar size={16} className="me-1"/> Bookings</>}>
-            <BookingList />
+            <BookingList refreshTrigger={refreshKey} />
           </Tab>
           <Tab eventKey="chats" title={<><MessageSquare size={16} className="me-1"/> Messages</>}>
             <ChatSystem />
           </Tab>
+          {user?.role === 'admin' && (
+            <Tab eventKey="users" title={<><Users size={16} className="me-1"/> Users</>}>
+              <UserManagement />
+            </Tab>
+          )}
         </Tabs>
 
         <AddVenueModal 

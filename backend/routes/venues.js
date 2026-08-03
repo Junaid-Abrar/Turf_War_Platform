@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-    getVenues, createVenue, deleteVenue, searchVenues
+    getVenues, getMyVenues, createVenue, deleteVenue, searchVenues
 } = require('../controllers/venues');
 const {
     protect, authorize
@@ -15,11 +15,12 @@ router.use('/:venueId/reviews', reviewRouter);
 
 router.route('/')
     .get(getVenues)
-    .post(protect, authorize('user', 'venue_owner', 'admin'), createVenue);
+    .post(protect, authorize('venue_owner', 'admin'), createVenue);
 
 router.get('/search', searchVenues);
+router.get('/mine', protect, authorize('venue_owner', 'admin'), getMyVenues);
 
 router.route('/:id')
-    .delete(protect, authorize('user', 'venue_owner', 'admin'), deleteVenue);
+    .delete(protect, authorize('venue_owner', 'admin'), deleteVenue);
 
 module.exports = router;

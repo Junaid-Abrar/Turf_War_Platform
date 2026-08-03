@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import api from '../api/axios';
 import { TrendingUp, Users, DollarSign } from 'lucide-react';
 
-const AnalyticsDashboard = () => {
+const AnalyticsDashboard = ({ refreshTrigger }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -21,7 +21,7 @@ const AnalyticsDashboard = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [refreshTrigger]);
 
   if (loading) return <div className="text-center py-5"><Spinner animation="border" /></div>;
   if (error) return <Alert variant="danger">{error}</Alert>;

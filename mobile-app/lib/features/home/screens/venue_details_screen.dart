@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../models/venue_model.dart';
 import '../../../models/review_model.dart';
 import '../../../providers/venue_provider.dart';
+import '../../../providers/user_provider.dart';
 import 'booking_screen.dart';
 import 'chat_screen.dart';
 
@@ -98,6 +99,8 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = Provider.of<UserProvider>(context, listen: false).user;
+    final isOwner = currentUser != null && currentUser.id == widget.venue.ownerId;
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -179,11 +182,12 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Reviews', style: Theme.of(context).textTheme.titleLarge),
-                      TextButton.icon(
-                        onPressed: _showAddReviewDialog,
-                        icon: const Icon(Icons.edit),
-                        label: const Text('Write Review'),
-                      ),
+                      if (!isOwner)
+                        TextButton.icon(
+                          onPressed: _showAddReviewDialog,
+                          icon: const Icon(Icons.edit),
+                          label: const Text('Write Review'),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -216,7 +220,23 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen> {
           ),
         ],
       ),
-      bottomSheet: Container(
+      bottomSheet: isOwner
+          ? Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -5))],
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.store, color: Colors.green),
+                  SizedBox(width: 8),
+                  Text('This is your venue', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16)),
+                ],
+              ),
+            )
+          : Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,

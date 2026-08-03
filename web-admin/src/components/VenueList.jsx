@@ -10,7 +10,7 @@ const VenueList = ({ refreshTrigger }) => {
 
   const fetchVenues = async () => {
     try {
-      const res = await api.get('/venues');
+      const res = await api.get('/venues/mine'); // Only fetch MY venues
       setVenues(res.data.data);
       setLoading(false);
     } catch (err) {

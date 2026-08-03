@@ -22,6 +22,13 @@ class _AddVenueScreenState extends State<AddVenueScreen> {
   final _picker = ImagePicker();
   bool _isLoading = false;
 
+  // Available amenities options
+  final List<String> _amenityOptions = [
+    'Wifi', 'Parking', 'Showers', 'Lockers', 'Water',
+    'Floodlights', 'Changing Rooms', 'Cafeteria', 'First Aid',
+  ];
+  final Set<String> _selectedAmenities = {};
+
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
@@ -43,13 +50,13 @@ class _AddVenueScreenState extends State<AddVenueScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Call Provider to create venue
       await Provider.of<VenueProvider>(context, listen: false).createVenue(
         name: _nameController.text,
         description: _descController.text,
         location: _locController.text,
         price: double.parse(_priceController.text),
         imageFile: _imageFile!,
+        amenities: _selectedAmenities.toList(),
       );
 
       if (mounted) {
@@ -91,7 +98,10 @@ class _AddVenueScreenState extends State<AddVenueScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: _imageFile != null
-                      ? Image.file(_imageFile!, fit: BoxFit.cover)
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.file(_imageFile!, fit: BoxFit.cover),
+                        )
                       : const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -130,6 +140,33 @@ class _AddVenueScreenState extends State<AddVenueScreen> {
                 decoration: const InputDecoration(labelText: 'Price per Hour (\$)'),
                 keyboardType: TextInputType.number,
                 validator: (v) => v!.isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 20),
+
+              // Amenities Selector
+              Text('Amenities', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: _amenityOptions.map((amenity) {
+                  final isSelected = _selectedAmenities.contains(amenity);
+                  return FilterChip(
+                    label: Text(amenity),
+                    selected: isSelected,
+                    selectedColor: Colors.green.withValues(alpha: 0.2),
+                    checkmarkColor: Colors.green,
+                    onSelected: (selected) {
+                      setState(() {
+                        if (selected) {
+                          _selectedAmenities.add(amenity);
+                        } else {
+                          _selectedAmenities.remove(amenity);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
               ),
               const SizedBox(height: 30),
 

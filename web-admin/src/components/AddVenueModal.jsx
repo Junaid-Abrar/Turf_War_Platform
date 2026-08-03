@@ -1,6 +1,11 @@
 import { useState } from 'react';
-import { Modal, Button, Form, Alert, Spinner } from 'react-bootstrap';
+import { Modal, Button, Form, Alert, Spinner, Badge } from 'react-bootstrap';
 import api from '../api/axios';
+
+const AMENITY_OPTIONS = [
+  'Wifi', 'Parking', 'Showers', 'Lockers', 'Water',
+  'Floodlights', 'Changing Rooms', 'Cafeteria', 'First Aid',
+];
 
 const AddVenueModal = ({ show, handleClose, onVenueAdded }) => {
   const [formData, setFormData] = useState({
@@ -9,6 +14,7 @@ const AddVenueModal = ({ show, handleClose, onVenueAdded }) => {
     location: '',
     pricePerHour: '',
   });
+  const [selectedAmenities, setSelectedAmenities] = useState([]);
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -19,6 +25,22 @@ const AddVenueModal = ({ show, handleClose, onVenueAdded }) => {
 
   const handleFileChange = (e) => {
     setImage(e.target.files[0]);
+  };
+
+  const toggleAmenity = (amenity) => {
+    setSelectedAmenities(prev =>
+      prev.includes(amenity)
+        ? prev.filter(a => a !== amenity)
+        : [...prev, amenity]
+    );
+  };
+
+  const handleClose_ = () => {
+    setFormData({ name: '', description: '', location: '', pricePerHour: '' });
+    setSelectedAmenities([]);
+    setImage(null);
+    setError('');
+    handleClose();
   };
 
   const handleSubmit = async (e) => {
@@ -35,6 +57,8 @@ const AddVenueModal = ({ show, handleClose, onVenueAdded }) => {
       if (image) {
         data.append('photo', image);
       }
+      // Append amenities as a JSON string so the backend can parse them
+      data.append('amenities', JSON.stringify(selectedAmenities));
 
       await api.post('/venues', data, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -42,9 +66,7 @@ const AddVenueModal = ({ show, handleClose, onVenueAdded }) => {
 
       setLoading(false);
       onVenueAdded(); // Refresh list
-      handleClose();  // Close modal
-      setFormData({ name: '', description: '', location: '', pricePerHour: '' }); // Reset
-      setImage(null);
+      handleClose_();
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.error || 'Failed to create venue');
@@ -53,7 +75,7 @@ const AddVenueModal = ({ show, handleClose, onVenueAdded }) => {
   };
 
   return (
-    <Modal show={show} onHide={handleClose}>
+    <Modal show={show} onHide={handleClose_}>
       <Modal.Header closeButton>
         <Modal.Title>Add New Venue</Modal.Title>
       </Modal.Header>
@@ -93,6 +115,29 @@ const AddVenueModal = ({ show, handleClose, onVenueAdded }) => {
           </Form.Group>
 
           <Form.Group className="mb-3">
+            <Form.Label>Amenities</Form.Label>
+            <div className="d-flex flex-wrap gap-2 mt-1">
+              {AMENITY_OPTIONS.map(amenity => (
+                <Badge
+                  key={amenity}
+                  bg={selectedAmenities.includes(amenity) ? 'success' : 'light'}
+                  text={selectedAmenities.includes(amenity) ? 'white' : 'dark'}
+                  className="border"
+                  style={{ cursor: 'pointer', fontSize: '0.85rem', padding: '6px 10px' }}
+                  onClick={() => toggleAmenity(amenity)}
+                >
+                  {selectedAmenities.includes(amenity) ? '✓ ' : ''}{amenity}
+                </Badge>
+              ))}
+            </div>
+            {selectedAmenities.length > 0 && (
+              <small className="text-muted mt-1 d-block">
+                Selected: {selectedAmenities.join(', ')}
+              </small>
+            )}
+          </Form.Group>
+
+          <Form.Group className="mb-3">
             <Form.Label>Cover Image</Form.Label>
             <Form.Control 
               type="file" accept="image/*" 
@@ -101,7 +146,7 @@ const AddVenueModal = ({ show, handleClose, onVenueAdded }) => {
           </Form.Group>
 
           <div className="d-flex justify-content-end">
-            <Button variant="secondary" onClick={handleClose} className="me-2">
+            <Button variant="secondary" onClick={handleClose_} className="me-2">
               Cancel
             </Button>
             <Button variant="success" type="submit" disabled={loading}>

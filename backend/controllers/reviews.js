@@ -33,6 +33,11 @@ exports.addReview = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Venue not found' });
     }
 
+    // Prevent venue owner from reviewing their own venue
+    if (venue.owner.toString() === req.user.id) {
+      return res.status(400).json({ success: false, error: 'You cannot review your own venue' });
+    }
+
     const review = await Review.create(req.body);
 
     res.status(201).json({

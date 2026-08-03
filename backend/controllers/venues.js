@@ -25,6 +25,26 @@ exports.getVenues = async (req, res) => {
     }
 };
 
+// @desc    Get venues owned by the logged-in user
+// @route   GET /api/venues/mine
+// @access  Private (venue_owner, admin)
+exports.getMyVenues = async (req, res) => {
+    try {
+        const venues = await Venue.find({ owner: req.user.id });
+
+        res.status(200).json({
+            success: true,
+            count: venues.length,
+            data: venues
+        });
+    } catch(err) {
+        res.status(500).json({
+            success: false,
+            error: 'Server Error'
+        });
+    }
+};
+
 exports.createVenue = async (req, res) => {
     try {
         req.body.owner = req.user.id;
@@ -56,6 +76,22 @@ exports.createVenue = async (req, res) => {
         // Add final list to body
         req.body.images = imageUrls;
         // -------------------------------
+
+        // --- Amenities Parsing ---
+        // Mobile sends amenities as a JSON string; web sends as an array
+        if (req.body.amenities) {
+            if (typeof req.body.amenities === 'string') {
+                try {
+                    req.body.amenities = JSON.parse(req.body.amenities);
+                } catch (e) {
+                    // If it's not valid JSON, treat it as a single item
+                    req.body.amenities = [req.body.amenities];
+                }
+            }
+        } else {
+            req.body.amenities = [];
+        }
+        // -------------------------
 
         const venue = await Venue.create(req.body);
 
