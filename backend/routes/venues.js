@@ -15,11 +15,11 @@ router.use('/:venueId/reviews', reviewRouter);
 
 router.route('/')
     .get(getVenues)
-    .post(protect, authorize('venue_owner', 'admin'), createVenue);
+    .post(protect, authorize('user', 'venue_owner', 'admin'), createVenue);
 
 router.get('/search', searchVenues);
 
 router.route('/:id')
-    .delete(protect, authorize('venue_owner', 'admin'), deleteVenue);
+    .delete(protect, authorize('user', 'venue_owner', 'admin'), deleteVenue);
 
 module.exports = router;
