@@ -109,3 +109,48 @@ exports.deleteVenue= async (req, res) => {
         });
     }
 };
+
+// @desc    Search venues with filters
+// @route   GET /api/venues/search
+// @access  Public
+exports.searchVenues = async (req, res) => {
+    try {
+        const { query, minPrice, maxPrice, amenities } = req.query;
+
+        let dbQuery = {};
+
+        // 1. Text Search (Name or Location)
+        if (query) {
+            dbQuery.$or = [
+                { name: { $regex: query, $options: 'i' } },
+                { location: { $regex: query, $options: 'i' } }
+            ];
+        }
+
+        // 2. Price Range
+        if (minPrice || maxPrice) {
+            dbQuery.pricePerHour = {};
+            if (minPrice) dbQuery.pricePerHour.$gte = Number(minPrice);
+            if (maxPrice) dbQuery.pricePerHour.$lte = Number(maxPrice);
+        }
+
+        // 3. Amenities Filter
+        if (amenities) {
+            // Expecting amenities as comma-separated string: "Wifi,Parking"
+            const amenitiesList = amenities.split(',').map(a => a.trim());
+            dbQuery.amenities = { $all: amenitiesList };
+        }
+
+        const venues = await Venue.find(dbQuery);
+
+        res.status(200).json({
+            success: true,
+            count: venues.length,
+            data: venues
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};

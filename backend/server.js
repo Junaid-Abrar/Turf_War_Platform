@@ -2,8 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const fileupload = require('express-fileupload');
+const cors = require('cors');
 
 const app = express();
+app.use(cors());
 const PORT = process.env.PORT || 3000;
 
 // 1. Core Middleware (Body Parsers)
@@ -28,11 +30,13 @@ app.use((req, res, next) => {
 const venueRoutes = require('./routes/venues');
 const authRoutes = require('./routes/auth');
 const bookingRoutes = require('./routes/bookings');
+const analyticsRoutes = require('./routes/analytics'); // Add
 
 app.use('/api/venues', venueRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/analytics', analyticsRoutes); // Use
 
 // 4. Database Connection
 mongoose.connect(process.env.MONGO_URI)

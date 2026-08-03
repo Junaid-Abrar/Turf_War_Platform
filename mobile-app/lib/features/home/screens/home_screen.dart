@@ -15,6 +15,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  double? _minPrice;
+  double? _maxPrice;
+  List<String> _selectedAmenities = [];
+
   @override
   void initState() {
     super.initState();
@@ -22,6 +27,98 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       Provider.of<VenueProvider>(context, listen: false).fetchVenues();
     });
+  }
+
+  void _performSearch() {
+    Provider.of<VenueProvider>(context, listen: false).searchVenues(
+      query: _searchController.text,
+      minPrice: _minPrice,
+      maxPrice: _maxPrice,
+      amenities: _selectedAmenities,
+    );
+  }
+
+  void _showFilterModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+              left: 16,
+              right: 16,
+              top: 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Filters', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                
+                const Text(r'Price Range ($/hr)', style: TextStyle(fontWeight: FontWeight.bold)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'Min'),
+                        onChanged: (val) => _minPrice = double.tryParse(val),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextField(
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'Max'),
+                        onChanged: (val) => _maxPrice = double.tryParse(val),
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 16),
+                const Text('Amenities', style: TextStyle(fontWeight: FontWeight.bold)),
+                Wrap(
+                  spacing: 8,
+                  children: ['Wifi', 'Parking', 'Showers', 'Lockers', 'Water'].map((amenity) {
+                    final isSelected = _selectedAmenities.contains(amenity);
+                    return FilterChip(
+                      label: Text(amenity),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setModalState(() {
+                          if (selected) {
+                            _selectedAmenities.add(amenity);
+                          } else {
+                            _selectedAmenities.remove(amenity);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+                
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _performSearch();
+                    },
+                    child: const Text('Apply Filters'),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          );
+        }
+      ),
+    );
   }
 
   @override
@@ -74,6 +171,33 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   'Find your turf',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                // Search Bar
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search venues...',
+                          prefixIcon: const Icon(Icons.search),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                        ),
+                        onSubmitted: (_) => _performSearch(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.tune), // Filter icon
+                      onPressed: _showFilterModal,
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.green.withValues(alpha: 0.1),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

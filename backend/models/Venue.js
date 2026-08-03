@@ -21,25 +21,25 @@ const venueSchema = new mongoose.Schema({
         type:Number,
         required: [true, 'Please add price per hour']
     },
-    images: {
-        type: [String],
-        default: []
-    },
-    amenities: {
-        type: [String],
-        enum:['Parking', 'Water', 'Changing Room', 'Showers' , 'Lights', 'Lockers'],
-
-    },
-
-    owner: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required:true
-    }
-},
-    {
-        timestamps:true
-    }
-);
+  images: {
+    type: [String],
+    default: []
+  },
+  amenities: {
+    type: [String],
+    default: []
+  },
+  owner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  averageRating: {
+    type: Number,
+    default: 0
+  }
+}, {
+  timestamps: true
+});
 
 module.exports = mongoose.model('Venue', venueSchema);

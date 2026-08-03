@@ -33,7 +33,8 @@ const userSchema = new mongoose.Schema({
     },
     createdAt: {
         type: Date,
-
+        default: Date.now
+    }
 }, {
   timestamps: true // Automatically creates 'createdAt' and 'updatedAt' fields
 });

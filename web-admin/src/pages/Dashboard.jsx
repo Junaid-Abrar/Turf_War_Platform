@@ -4,9 +4,10 @@ import AuthContext from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import VenueList from '../components/VenueList';
 import BookingList from '../components/BookingList';
-import ChatSystem from '../components/ChatSystem'; // Add
+import ChatSystem from '../components/ChatSystem';
+import AnalyticsDashboard from '../components/AnalyticsDashboard'; // Add
 import AddVenueModal from '../components/AddVenueModal';
-import { PlusCircle, LayoutGrid, Calendar, MessageSquare } from 'lucide-react'; // Add icon
+import { PlusCircle, LayoutGrid, Calendar, MessageSquare, BarChart2 } from 'lucide-react'; // Add icon
 
 const Dashboard = () => {
   const { logout, user } = useContext(AuthContext);
@@ -50,7 +51,10 @@ const Dashboard = () => {
           </Button>
         </div>
 
-        <Tabs defaultActiveKey="venues" className="mb-4">
+        <Tabs defaultActiveKey="overview" className="mb-4">
+          <Tab eventKey="overview" title={<><BarChart2 size={16} className="me-1"/> Overview</>}>
+            <AnalyticsDashboard />
+          </Tab>
           <Tab eventKey="venues" title={<><LayoutGrid size={16} className="me-1"/> Venues</>}>
             <VenueList refreshTrigger={refreshKey} />
           </Tab>

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../features/home/services/venue_service.dart';
 import '../models/venue_model.dart';
+import '../models/review_model.dart'; // Add
 
 class VenueProvider extends ChangeNotifier {
   final VenueService _venueService = VenueService();
@@ -29,6 +30,43 @@ class VenueProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> searchVenues({
+    String? query,
+    double? minPrice,
+    double? maxPrice,
+    List<String>? amenities,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _venues = await _venueService.searchVenues(
+        query: query,
+        minPrice: minPrice,
+        maxPrice: maxPrice,
+        amenities: amenities,
+      );
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<List<ReviewModel>> getReviews(String venueId) async {
+    return await _venueService.getReviews(venueId);
+  }
+
+  Future<void> addReview(String venueId, double rating, String comment) async {
+    final token = await _storage.read(key: 'auth_token');
+    if (token == null) throw Exception('Authentication required');
+    
+    await _venueService.addReview(token, venueId, rating, comment);
+    notifyListeners();
   }
 
   Future<void> createVenue({
