@@ -42,4 +42,12 @@ const venueSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Cascade: remove bookings and reviews when their venue is deleted
+venueSchema.pre('deleteOne', { document: true, query: false }, async function () {
+  await Promise.all([
+    this.model('Booking').deleteMany({ venue: this._id }),
+    this.model('Review').deleteMany({ venue: this._id })
+  ]);
+});
+
 module.exports = mongoose.model('Venue', venueSchema);

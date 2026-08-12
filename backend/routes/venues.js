@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-    getVenues, getMyVenues, createVenue, deleteVenue, searchVenues
+    getVenues, getVenue, getMyVenues, createVenue, updateVenue, deleteVenue, searchVenues
 } = require('../controllers/venues');
 const {
     protect, authorize
@@ -21,6 +21,8 @@ router.get('/search', searchVenues);
 router.get('/mine', protect, authorize('venue_owner', 'admin'), getMyVenues);
 
 router.route('/:id')
+    .get(getVenue)
+    .put(protect, authorize('venue_owner', 'admin'), updateVenue)
     .delete(protect, authorize('venue_owner', 'admin'), deleteVenue);
 
 module.exports = router;

@@ -3,7 +3,6 @@ const router = express.Router();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { protect } = require('../middleware/auth');
 const Booking = require('../models/Booking');
-const Venue = require('../models/Venue');
 const User = require('../models/User');
 const { sendNotification } = require('../config/firebase');
 
@@ -17,6 +16,14 @@ router.post('/create-payment-intent', protect, async (req, res) => {
     const booking = await Booking.findById(bookingId).populate('venue');
     if (!booking) {
       return res.status(404).json({ success: false, error: 'Booking not found' });
+    }
+
+    if (booking.user.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'Not authorized to pay for this booking' });
+    }
+
+    if (booking.paymentStatus === 'paid') {
+      return res.status(400).json({ success: false, error: 'Booking is already paid' });
     }
 
     // Stripe expects amount in cents
@@ -46,7 +53,9 @@ router.post('/create-payment-intent', protect, async (req, res) => {
 // @desc    Stripe Webhook
 // @route   POST /api/payments/webhook
 // @access  Public
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+// Raw-body parsing for this path is registered in server.js, before express.json() —
+// Stripe signature verification needs the untouched request body.
+router.post('/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
 
@@ -62,7 +71,10 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     const paymentIntent = event.data.object;
     const bookingId = paymentIntent.metadata.bookingId;
 
-    const booking = await Booking.findById(bookingId).populate('venue');
+    const booking = await Booking.findById(bookingId).populate({
+      path: 'venue',
+      populate: { path: 'owner' }
+    });
     if (booking) {
       booking.paymentStatus = 'paid';
       booking.status = 'confirmed';
@@ -70,7 +82,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
       // Trigger Notifications here
       const user = await User.findById(booking.user);
-      const venue = await Venue.findById(booking.venue).populate('owner');
+      const venue = booking.venue;
 
       if (user && user.fcmToken) {
         sendNotification(

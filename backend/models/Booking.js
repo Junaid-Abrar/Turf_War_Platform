@@ -44,7 +44,11 @@ const bookingSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Prevent double booking: Unique index on Venue + Date + StartTime
-bookingSchema.index({ venue: 1, date: 1, startTime: 1 }, { unique: true });
+// Prevent double booking: Unique index on Venue + Date + StartTime.
+// Scoped to non-cancelled bookings so a cancelled slot frees up for rebooking.
+bookingSchema.index(
+  { venue: 1, date: 1, startTime: 1 },
+  { unique: true, partialFilterExpression: { status: { $in: ['pending', 'confirmed'] } } }
+);
 
 module.exports = mongoose.model('Booking', bookingSchema);

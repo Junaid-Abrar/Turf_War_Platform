@@ -25,6 +25,65 @@ exports.getVenues = async (req, res) => {
     }
 };
 
+// @desc    Get a single venue
+// @route   GET /api/venues/:id
+// @access  Public
+exports.getVenue = async (req, res) => {
+    try {
+        const venue = await Venue.findById(req.params.id);
+
+        if (!venue) {
+            return res.status(404).json({ success: false, error: 'Venue not found' });
+        }
+
+        res.status(200).json({ success: true, data: venue });
+    } catch (err) {
+        if (err.name === 'CastError') {
+            return res.status(404).json({ success: false, error: 'Venue not found' });
+        }
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
+// @desc    Update a venue
+// @route   PUT /api/venues/:id
+// @access  Private (owner or admin)
+exports.updateVenue = async (req, res) => {
+    try {
+        let venue = await Venue.findById(req.params.id);
+
+        if (!venue) {
+            return res.status(404).json({ success: false, error: 'Venue not found' });
+        }
+
+        if (venue.owner.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Not authorized to update this venue' });
+        }
+
+        // Only allow updating these fields — owner and images/amenities are managed separately
+        const allowedFields = ['name', 'description', 'location', 'pricePerHour', 'amenities'];
+        const updates = {};
+        for (const field of allowedFields) {
+            if (req.body[field] !== undefined) {
+                updates[field] = req.body[field];
+            }
+        }
+
+        venue = await Venue.findByIdAndUpdate(req.params.id, updates, {
+            new: true,
+            runValidators: true
+        });
+
+        res.status(200).json({ success: true, data: venue });
+    } catch (err) {
+        if (err.name === 'ValidationError') {
+            const messages = Object.values(err.errors).map(val => val.message);
+            return res.status(400).json({ success: false, error: messages });
+        }
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
 // @desc    Get venues owned by the logged-in user
 // @route   GET /api/venues/mine
 // @access  Private (venue_owner, admin)

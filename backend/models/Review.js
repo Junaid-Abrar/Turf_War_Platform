@@ -51,13 +51,12 @@ reviewSchema.statics.getAverageRating = async function(venueId) {
   }
 };
 
-// Call getAverageRating after save
+// Recalculate average rating after a review is created or deleted
 reviewSchema.post('save', function() {
   this.constructor.getAverageRating(this.venue);
 });
 
-// Call getAverageRating before remove
-reviewSchema.pre('remove', function() {
+reviewSchema.post('deleteOne', { document: true, query: false }, function() {
   this.constructor.getAverageRating(this.venue);
 });
 
