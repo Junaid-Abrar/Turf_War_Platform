@@ -1,4 +1,105 @@
-GEMINI.md
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.iml
+.claude/
+
+# Env files
 .env
+.env.*
+!.env.example
+
+# ---- backend ----
+backend/node_modules/
+backend/tmp/
+backend/coverage/
 backend/config/service-account.json
+npm-debug.log*
+
+# ---- web-admin ----
+web-admin/node_modules/
+web-admin/dist/
+web-admin/coverage/
+web-admin/npm-debug.log*
+
+# ---- mobile-app (Flutter) ----
+mobile-app/.dart_tool/
+mobile-app/.flutter-plugins
+mobile-app/.flutter-plugins-dependencies
+mobile-app/.packages
+mobile-app/.pub-cache/
+mobile-app/.pub/
+mobile-app/build/
+mobile-app/coverage/
+mobile-app/*.iml
+mobile-app/.idea/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android
+mobile-app/android/.gradle
+mobile-app/android/captures/
+mobile-app/android/local.properties
+mobile-app/android/**/GeneratedPluginRegistrant.java
 mobile-app/android/app/google-services.json
+mobile-app/android/key.properties
+mobile-app/**/*.keystore
+mobile-app/**/*.jks
+
+# iOS/XCode
+mobile-app/ios/**/*.mode1v3
+mobile-app/ios/**/*.mode2v3
+mobile-app/ios/**/*.moved-aside
+mobile-app/ios/**/*.pbxuser
+mobile-app/ios/**/*.perspectivev3
+mobile-app/ios/**/*sync/
+mobile-app/ios/**/.sconsign.dblite
+mobile-app/ios/**/.tags*
+mobile-app/ios/**/.vagrant/
+mobile-app/ios/**/DerivedData/
+mobile-app/ios/**/Icon?
+mobile-app/ios/**/Pods/
+mobile-app/ios/**/.symlinks/
+mobile-app/ios/**/profile
+mobile-app/ios/**/xcuserdata
+mobile-app/ios/.generated/
+mobile-app/ios/Flutter/App.framework
+mobile-app/ios/Flutter/Flutter.framework
+mobile-app/ios/Flutter/Flutter.podspec
+mobile-app/ios/Flutter/Generated.xcconfig
+mobile-app/ios/Flutter/ephemeral/
+mobile-app/ios/Flutter/app.flx
+mobile-app/ios/Flutter/app.zip
+mobile-app/ios/Flutter/flutter_assets/
+mobile-app/ios/Flutter/flutter_export_environment.sh
+mobile-app/ios/ServiceDefinitions.json
+mobile-app/ios/Runner/GeneratedPluginRegistrant.*
+mobile-app/ios/Runner.xcworkspace/xcshareddata/
+
+# macOS
+mobile-app/macos/Flutter/GeneratedPluginRegistrant.swift
+mobile-app/macos/Flutter/ephemeral/
+
+# Symbolication
+mobile-app/app.*.symbols
+
+# Obfuscation
+mobile-app/app.*.map.json
+
+# Exceptions to above rules.
+!mobile-app/**/ios/**/default.mode1v3
+!mobile-app/**/ios/**/default.mode2v3
+!mobile-app/**/ios/**/default.pbxuser
+!mobile-app/**/ios/**/default.perspectivev3
+!mobile-app/**/ios/**/default.sconsign.dblite
+
+# ---- workspace / temp ----
+*.log
+.claude/
