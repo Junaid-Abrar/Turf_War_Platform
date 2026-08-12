@@ -108,6 +108,16 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen> {
           SliverAppBar(
             expandedHeight: 300,
             pinned: true,
+            leading: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: CircleAvatar(
+                backgroundColor: Colors.black54,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+            ),
             flexibleSpace: FlexibleSpaceBar(
               title: Text(widget.venue.name, style: const TextStyle(color: Colors.white, shadows: [Shadow(blurRadius: 10)])),
               background: widget.venue.images.isNotEmpty
