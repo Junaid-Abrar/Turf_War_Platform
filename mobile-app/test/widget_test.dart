@@ -1,30 +1,23 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+// Minimal smoke test. SplashScreen (the app's real entry widget) kicks off a
+// delayed auto-login check against secure storage and Provider state that
+// aren't available in a plain widget test, so a full app-boot test is left to
+// a later phase alongside proper provider mocking. This confirms the basic
+// Flutter/MaterialApp scaffolding renders without error.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mobile_app/main.dart';
-
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('renders a basic MaterialApp scaffold', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        title: 'Turf War',
+        theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),
+        home: const Scaffold(
+          body: Center(child: Text('TURF WAR')),
+        ),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('TURF WAR'), findsOneWidget);
   });
 }

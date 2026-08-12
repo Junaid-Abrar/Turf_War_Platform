@@ -15,7 +15,8 @@ export const AuthProvider = ({ children }) => {
       try {
         const decoded = jwtDecode(token);
         // Optional: Check if token is expired
-        setUser(decoded); 
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time auth check on mount, not a render-driven update
+        setUser(decoded);
       } catch (error) {
         console.error("Invalid token", error);
         localStorage.removeItem('adminToken');

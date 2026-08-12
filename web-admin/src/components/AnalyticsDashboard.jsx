@@ -15,7 +15,7 @@ const AnalyticsDashboard = ({ refreshTrigger }) => {
         const res = await api.get('/analytics');
         setData(res.data.data);
         setLoading(false);
-      } catch (err) {
+      } catch {
         setError('Failed to load analytics');
         setLoading(false);
       }

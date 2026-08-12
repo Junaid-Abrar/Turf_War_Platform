@@ -13,13 +13,14 @@ const VenueList = ({ refreshTrigger }) => {
       const res = await api.get('/venues/mine'); // Only fetch MY venues
       setVenues(res.data.data);
       setLoading(false);
-    } catch (err) {
+    } catch {
       setError('Failed to load venues');
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount/refresh, not a render-driven update
     fetchVenues();
   }, [refreshTrigger]);
 
@@ -29,7 +30,7 @@ const VenueList = ({ refreshTrigger }) => {
         await api.delete(`/venues/${id}`);
         // Remove from local state to avoid refetch
         setVenues(venues.filter(v => v._id !== id));
-      } catch (err) {
+      } catch {
         alert('Failed to delete venue');
       }
     }

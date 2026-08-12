@@ -1,0 +1,47 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      MONGO_URI: mongodb://mongo:27017/turfwar
+      PORT: 3000
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me}
+      JWT_EXPIRE: 7d
+      CORS_ORIGINS: http://localhost:5173,http://localhost:8080
+      LOG_LEVEL: info
+      NODE_ENV: development
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      FIREBASE_SERVICE_ACCOUNT: ${FIREBASE_SERVICE_ACCOUNT:-}
+    depends_on:
+      - mongo
+
+  web-admin:
+    build:
+      context: ./web-admin
+      # NOTE: web-admin's API base URL is still hardcoded to http://localhost:3000/api
+      # (src/api/axios.js) rather than reading VITE_API_URL — this build arg is wired
+      # up but has no effect until that hardcoding is fixed. Tracked for a later phase.
+      args:
+        VITE_API_URL: http://localhost:3000/api
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  mongo-data:

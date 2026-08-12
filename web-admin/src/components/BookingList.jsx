@@ -18,7 +18,7 @@ const BookingList = ({ refreshTrigger }) => {
       setBookings(res.data.data);
       setLastUpdated(new Date());
       setError('');
-    } catch (err) {
+    } catch {
       setError('Failed to load bookings');
     } finally {
       setLoading(false);

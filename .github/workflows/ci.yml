@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (lint + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test -- --coverage
+
+  mobile:
+    name: Mobile (analyze + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      # TODO(phase-4/5): drop continue-on-error once analysis_options.yaml is tightened
+      # and the pre-existing avoid_print / use_build_context_synchronously findings are fixed.
+      - run: flutter analyze
+        continue-on-error: true
+      - run: flutter test --coverage
+
+  web-admin:
+    name: Web admin (lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web-admin/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build

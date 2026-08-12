@@ -7,20 +7,21 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
   const fetchUsers = async () => {
     try {
       const res = await api.get('/auth/users');
       setUsers(res.data.data);
       setLoading(false);
-    } catch (err) {
+    } catch {
       setError('Failed to load users');
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount, not a render-driven update
+    fetchUsers();
+  }, []);
 
   const handleRoleChange = async (userId, newRole) => {
     try {
