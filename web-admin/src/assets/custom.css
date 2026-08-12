@@ -6,3 +6,44 @@
 .spin-icon {
   animation: spin 0.8s linear infinite;
 }
+
+/* Brand palette shared with the mobile app (core/theme/app_colors.dart) */
+:root {
+  --bs-success: #16a34a;
+  --bs-success-rgb: 22, 163, 74;
+}
+
+[data-bs-theme='dark'] {
+  --bs-body-bg: #171e1b;
+  --bs-body-color: #e7ece9;
+  --bs-success: #4ade80;
+  --bs-success-rgb: 74, 222, 128;
+  --bs-border-color: #3a4540;
+  --bs-secondary-bg: #1b2320;
+  --bs-tertiary-bg: #212a26;
+}
+
+[data-bs-theme='dark'] .card,
+[data-bs-theme='dark'] .modal-content,
+[data-bs-theme='dark'] .table {
+  background-color: #1b2320;
+  color: #e7ece9;
+}
+
+[data-bs-theme='dark'] .bg-white {
+  background-color: #1b2320 !important;
+}
+
+[data-bs-theme='dark'] .bg-light {
+  background-color: #212a26 !important;
+  color: #e7ece9;
+}
+
+[data-bs-theme='dark'] .text-muted {
+  color: #b6c0bb !important;
+}
+
+[data-bs-theme='dark'] .badge.bg-light {
+  background-color: #27312c !important;
+  color: #e7ece9 !important;
+}

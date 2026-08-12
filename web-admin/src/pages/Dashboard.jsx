@@ -1,6 +1,7 @@
 import { useContext, useState } from 'react';
 import { Container, Navbar, Nav, Button, Tabs, Tab } from 'react-bootstrap';
 import AuthContext from '../context/AuthContext';
+import ThemeContext from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import VenueList from '../components/VenueList';
 import BookingList from '../components/BookingList';
@@ -8,14 +9,15 @@ import ChatSystem from '../components/ChatSystem';
 import AnalyticsDashboard from '../components/AnalyticsDashboard'; // Add
 import AddVenueModal from '../components/AddVenueModal';
 import UserManagement from '../components/UserManagement';
-import { PlusCircle, LayoutGrid, Calendar, MessageSquare, BarChart2, Users } from 'lucide-react'; // Add icon
+import { PlusCircle, LayoutGrid, Calendar, MessageSquare, BarChart2, Users, Moon, Sun } from 'lucide-react'; // Add icon
 
 const Dashboard = () => {
   const { logout, user } = useContext(AuthContext);
+  const { theme, toggleTheme } = useContext(ThemeContext);
   const navigate = useNavigate();
-  
+
   const [showAddModal, setShowAddModal] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0); 
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleLogout = () => {
     logout();
@@ -37,6 +39,16 @@ const Dashboard = () => {
               <Navbar.Text className="me-3">
                 Hello, <span className="text-white fw-bold">{user?.name || user?.id}</span>
               </Navbar.Text>
+              <Button
+                variant="outline-light"
+                size="sm"
+                className="me-2"
+                onClick={toggleTheme}
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                aria-label="Toggle dark mode"
+              >
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              </Button>
               <Button variant="outline-light" size="sm" onClick={handleLogout}>Logout</Button>
             </Nav>
           </Navbar.Collapse>

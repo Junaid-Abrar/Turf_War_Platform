@@ -42,7 +42,7 @@ jobs:
       - run: flutter test --coverage
 
   web-admin:
-    name: Web admin (lint + build)
+    name: Web admin (lint + test + build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -56,4 +56,5 @@ jobs:
           cache-dependency-path: web-admin/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - run: npm test
       - run: npm run build

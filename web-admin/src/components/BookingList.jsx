@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Table, Badge, Spinner, Alert, Card, Button } from 'react-bootstrap';
-import { RefreshCw } from 'lucide-react';
+import { Table, Badge, Alert, Card, Button } from 'react-bootstrap';
+import { RefreshCw, Check, X, CalendarX } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '../api/axios';
+import { TableSkeleton } from './Skeletons';
+import EmptyState from './EmptyState';
 
 const BookingList = ({ refreshTrigger }) => {
   const [bookings, setBookings] = useState([]);
@@ -9,6 +12,7 @@ const BookingList = ({ refreshTrigger }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
 
   const fetchBookings = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -26,18 +30,29 @@ const BookingList = ({ refreshTrigger }) => {
     }
   }, []);
 
-  // Initial fetch + re-fetch when parent increments refreshTrigger
   useEffect(() => {
     fetchBookings();
   }, [fetchBookings, refreshTrigger]);
 
-  // Auto-poll every 30 seconds for new bookings
   useEffect(() => {
     const interval = setInterval(() => fetchBookings(true), 30000);
     return () => clearInterval(interval);
   }, [fetchBookings]);
 
-  if (loading) return <div className="text-center py-4"><Spinner animation="border" /></div>;
+  const updateStatus = async (id, status) => {
+    setUpdatingId(id);
+    try {
+      await api.patch(`/bookings/${id}/status`, { status });
+      setBookings((prev) => prev.map((b) => (b._id === id ? { ...b, status } : b)));
+      toast.success(status === 'confirmed' ? 'Booking confirmed' : 'Booking rejected');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update booking');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  if (loading) return <TableSkeleton />;
   if (error) return <Alert variant="danger">{error}</Alert>;
 
   return (
@@ -64,7 +79,7 @@ const BookingList = ({ refreshTrigger }) => {
 
       {bookings.length === 0 ? (
         <Card.Body>
-          <Alert variant="info" className="mb-0">No bookings found yet.</Alert>
+          <EmptyState icon={CalendarX} title="No bookings found yet" />
         </Card.Body>
       ) : (
         <Table responsive hover className="mb-0">
@@ -77,6 +92,7 @@ const BookingList = ({ refreshTrigger }) => {
               <th>Status</th>
               <th>Payment</th>
               <th>Price</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -90,20 +106,44 @@ const BookingList = ({ refreshTrigger }) => {
                 <td>{booking.date}</td>
                 <td>{booking.startTime} - {booking.endTime}</td>
                 <td>
-                  <Badge 
+                  <Badge
                     bg={booking.status === 'confirmed' ? 'success' : booking.status === 'cancelled' ? 'danger' : 'warning'}
                   >
                     {booking.status}
                   </Badge>
                 </td>
                 <td>
-                  <Badge 
+                  <Badge
                     bg={booking.paymentStatus === 'paid' ? 'success' : 'secondary'}
                   >
                     {booking.paymentStatus || 'unpaid'}
                   </Badge>
                 </td>
                 <td className="fw-bold">${booking.price}</td>
+                <td>
+                  {booking.status === 'pending' && (
+                    <div className="d-flex gap-1">
+                      <Button
+                        variant="outline-success"
+                        size="sm"
+                        disabled={updatingId === booking._id}
+                        onClick={() => updateStatus(booking._id, 'confirmed')}
+                        title="Confirm booking"
+                      >
+                        <Check size={14} />
+                      </Button>
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        disabled={updatingId === booking._id}
+                        onClick={() => updateStatus(booking._id, 'cancelled')}
+                        title="Reject booking"
+                      >
+                        <X size={14} />
+                      </Button>
+                    </div>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal, Button, Form, Alert, Spinner, Badge } from 'react-bootstrap';
+import toast from 'react-hot-toast';
 import api from '../api/axios';
 
 const AMENITY_OPTIONS = [
@@ -65,6 +66,7 @@ const AddVenueModal = ({ show, handleClose, onVenueAdded }) => {
       });
 
       setLoading(false);
+      toast.success('Venue created');
       onVenueAdded(); // Refresh list
       handleClose_();
     } catch (err) {

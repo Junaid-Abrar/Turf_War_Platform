@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Row, Col, Card, Spinner, Alert } from 'react-bootstrap';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Row, Col, Card, Alert } from 'react-bootstrap';
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
 import api from '../api/axios';
 import { TrendingUp, Users, DollarSign } from 'lucide-react';
+import { MetricCardSkeleton } from './Skeletons';
 
 const AnalyticsDashboard = ({ refreshTrigger }) => {
   const [data, setData] = useState(null);
@@ -14,23 +17,34 @@ const AnalyticsDashboard = ({ refreshTrigger }) => {
       try {
         const res = await api.get('/analytics');
         setData(res.data.data);
-        setLoading(false);
       } catch {
         setError('Failed to load analytics');
+      } finally {
         setLoading(false);
       }
     };
     fetchData();
   }, [refreshTrigger]);
 
-  if (loading) return <div className="text-center py-5"><Spinner animation="border" /></div>;
+  if (loading) {
+    return (
+      <div>
+        <h4 className="mb-4">Overview</h4>
+        <Row className="mb-4">
+          {[0, 1, 2].map((i) => (
+            <Col md={4} key={i}><MetricCardSkeleton /></Col>
+          ))}
+        </Row>
+      </div>
+    );
+  }
   if (error) return <Alert variant="danger">{error}</Alert>;
   if (!data) return null;
 
   return (
     <div>
       <h4 className="mb-4">Overview</h4>
-      
+
       {/* Metrics Cards */}
       <Row className="mb-4">
         <Col md={4}>
@@ -62,7 +76,23 @@ const AnalyticsDashboard = ({ refreshTrigger }) => {
         </Col>
       </Row>
 
-      {/* Chart */}
+      {/* Revenue over time */}
+      <Card className="shadow-sm border-0 p-3 mb-4">
+        <h5 className="mb-3">Revenue (Last 30 Days)</h5>
+        <div style={{ height: 300 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data.revenueOverTime}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
+              <Line type="monotone" dataKey="revenue" stroke="#16a34a" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      {/* Bookings per venue */}
       <Card className="shadow-sm border-0 p-3 mb-4">
         <h5 className="mb-3">Bookings per Venue</h5>
         <div style={{ height: 300 }}>
