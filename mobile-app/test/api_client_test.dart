@@ -5,37 +5,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:mobile_app/core/network/api_client.dart';
 import 'package:mobile_app/core/network/api_exception.dart';
-import 'package:mobile_app/core/network/token_storage.dart';
 
-/// In-memory stand-in for the platform keystore, which is unavailable in tests.
-class _FakeTokenStorage implements TokenStorage {
-  String? _token;
-
-  _FakeTokenStorage([this._token]);
-
-  @override
-  String? get cachedToken => _token;
-
-  @override
-  Future<String?> read() async => _token;
-
-  @override
-  Future<void> write(String token) async => _token = token;
-
-  @override
-  Future<void> clear() async => _token = null;
-}
+import 'helpers/fake_token_storage.dart';
 
 void main() {
   late Dio dio;
   late DioAdapter adapter;
-  late _FakeTokenStorage storage;
+  late FakeTokenStorage storage;
   late ApiClient client;
 
   setUp(() {
     dio = Dio(BaseOptions(baseUrl: 'http://test.local/api'));
     adapter = DioAdapter(dio: dio);
-    storage = _FakeTokenStorage('stored-token');
+    storage = FakeTokenStorage('stored-token');
     client = ApiClient(tokenStorage: storage, dio: dio);
   });
 
@@ -64,7 +46,7 @@ void main() {
     });
 
     test('omits the header when no token is stored', () async {
-      final _FakeTokenStorage empty = _FakeTokenStorage();
+      final FakeTokenStorage empty = FakeTokenStorage();
       final Dio bareDio = Dio(BaseOptions(baseUrl: 'http://test.local/api'));
       final DioAdapter bareAdapter = DioAdapter(dio: bareDio);
       final ApiClient bareClient =
