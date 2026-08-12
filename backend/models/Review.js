@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const logger = require('../config/logger');
 
 const reviewSchema = new mongoose.Schema({
   user: {
@@ -47,7 +48,7 @@ reviewSchema.statics.getAverageRating = async function(venueId) {
       averageRating: obj[0] ? obj[0].averageRating : 0
     });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, 'Failed to recalculate average rating');
   }
 };
 

@@ -1,6 +1,7 @@
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
+const logger = require('./logger');
 
 let initialized = false;
 
@@ -22,12 +23,12 @@ try {
       credential: admin.credential.cert(serviceAccount)
     });
     initialized = true;
-    console.log('Firebase Admin Initialized');
+    logger.info('Firebase Admin Initialized');
   } else {
-    console.warn('Firebase Admin not initialized: no service account found (set FIREBASE_SERVICE_ACCOUNT or provide config/service-account.json). Push notifications are disabled.');
+    logger.warn('Firebase Admin not initialized: no service account found (set FIREBASE_SERVICE_ACCOUNT or provide config/service-account.json). Push notifications are disabled.');
   }
 } catch (error) {
-  console.error('Firebase Admin Initialization Error:', error);
+  logger.error({ err: error }, 'Firebase Admin Initialization Error');
 }
 
 const sendNotification = async (fcmToken, title, body, data = {}) => {
@@ -44,9 +45,9 @@ const sendNotification = async (fcmToken, title, body, data = {}) => {
 
   try {
     await admin.messaging().send(message);
-    console.log('Notification sent successfully');
+    logger.info('Notification sent successfully');
   } catch (error) {
-    console.error('Error sending notification:', error);
+    logger.error({ err: error }, 'Error sending notification');
   }
 };
 

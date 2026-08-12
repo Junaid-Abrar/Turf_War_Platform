@@ -18,7 +18,7 @@ function makeRequest(path, method, token, payload, callback) {
       console.log(`[${method} ${path}] Status: ${res.statusCode}`);
       try {
         if (callback) callback(JSON.parse(body));
-      } catch (e) { console.log('Body:', body); }
+      } catch (_e) { console.log('Body:', body); }
     });
   });
   if (payload) req.write(JSON.stringify(payload));

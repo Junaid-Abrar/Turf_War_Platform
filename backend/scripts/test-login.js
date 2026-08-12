@@ -31,7 +31,7 @@ function sendRequest(path, payload, callback) {
         const parsed = JSON.parse(body);
         console.log(parsed);
         if (callback) callback(parsed);
-      } catch (e) {
+      } catch (_e) {
         console.log('RAW BODY:', body);
       }
     });
@@ -43,7 +43,7 @@ function sendRequest(path, payload, callback) {
 }
 
 console.log('STEP 1: Registering User...');
-sendRequest('/api/auth/register', user, (res) => {
+sendRequest('/api/auth/register', user, (_res) => {
   // Even if duplicate, proceed to login
   console.log('\nSTEP 2: Logging In...');
   sendRequest('/api/auth/login', {

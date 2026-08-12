@@ -1,70 +1,123 @@
-const Booking = require('../models/Booking');
 const Venue = require('../models/Venue');
+const Booking = require('../models/Booking');
+const asyncHandler = require('../middleware/asyncHandler');
+
+const EMPTY_ANALYTICS = {
+  totalRevenue: 0,
+  totalBookings: 0,
+  bookingsPerVenue: [],
+  recentBookings: [],
+  revenueOverTime: []
+};
 
 // @desc    Get analytics for owner
 // @route   GET /api/analytics
 // @access  Private (Owner/Admin)
-exports.getAnalytics = async (req, res) => {
-  try {
-    // 1. Find venues owned by this user
-    const venues = await Venue.find({ owner: req.user.id });
-    const venueIds = venues.map(v => v._id);
+exports.getAnalytics = asyncHandler(async (req, res) => {
+  const venues = await Venue.find({ owner: req.user.id }).select('_id');
+  const venueIds = venues.map((v) => v._id);
 
-    if (venueIds.length === 0) {
-      return res.status(200).json({
-        success: true,
-        data: {
-          totalRevenue: 0,
-          totalBookings: 0,
-          bookingsPerVenue: [],
-          recentBookings: []
-        }
-      });
-    }
-
-    // 2. Get all bookings for these venues
-    const bookings = await Booking.find({ venue: { $in: venueIds } })
-      .populate('venue', 'name')
-      .populate('user', 'name');
-
-    // 3. Calculate Metrics
-    const totalBookings = bookings.length;
-    
-    const totalRevenue = bookings.reduce((acc, curr) => {
-      // Only count revenue for confirmed bookings
-      return (curr.status === 'confirmed') ? acc + curr.price : acc;
-    }, 0);
-
-    // 4. Bookings per Venue
-    const bookingsPerVenueMap = {};
-    bookings.forEach(b => {
-      const vName = b.venue.name;
-      if (!bookingsPerVenueMap[vName]) bookingsPerVenueMap[vName] = 0;
-      bookingsPerVenueMap[vName]++;
-    });
-
-    const bookingsPerVenue = Object.keys(bookingsPerVenueMap).map(key => ({
-      name: key,
-      value: bookingsPerVenueMap[key]
-    }));
-
-    // 5. Recent Bookings (Last 5)
-    const recentBookings = bookings
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, 5);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        totalRevenue,
-        totalBookings,
-        bookingsPerVenue,
-        recentBookings
-      }
-    });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, error: 'Server Error' });
+  if (venueIds.length === 0) {
+    return res.status(200).json({ success: true, data: EMPTY_ANALYTICS });
   }
-};
+
+  const [summary] = await Booking.aggregate([
+    { $match: { venue: { $in: venueIds } } },
+    {
+      $facet: {
+        totals: [
+          {
+            $group: {
+              _id: null,
+              totalBookings: { $sum: 1 },
+              totalRevenue: {
+                $sum: { $cond: [{ $eq: ['$status', 'confirmed'] }, '$price', 0] }
+              }
+            }
+          }
+        ],
+        bookingsPerVenue: [
+          { $group: { _id: '$venue', value: { $sum: 1 } } },
+          {
+            $lookup: {
+              from: 'venues',
+              localField: '_id',
+              foreignField: '_id',
+              as: 'venue'
+            }
+          },
+          { $unwind: '$venue' },
+          { $project: { _id: 0, name: '$venue.name', value: 1 } },
+          { $sort: { value: -1 } }
+        ],
+        recentBookings: [
+          { $sort: { createdAt: -1 } },
+          { $limit: 5 },
+          {
+            $lookup: {
+              from: 'venues',
+              localField: 'venue',
+              foreignField: '_id',
+              as: 'venue'
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: '_id',
+              as: 'user'
+            }
+          },
+          { $unwind: '$venue' },
+          { $unwind: '$user' },
+          {
+            $project: {
+              date: 1,
+              startTime: 1,
+              endTime: 1,
+              price: 1,
+              status: 1,
+              createdAt: 1,
+              'venue._id': 1,
+              'venue.name': 1,
+              'user._id': 1,
+              'user.name': 1
+            }
+          }
+        ],
+        // Revenue for confirmed bookings, grouped by day, over the last 30 days
+        revenueOverTime: [
+          {
+            $match: {
+              status: 'confirmed',
+              createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+            }
+          },
+          {
+            $group: {
+              _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+              revenue: { $sum: '$price' },
+              bookings: { $sum: 1 }
+            }
+          },
+          { $sort: { _id: 1 } },
+          { $project: { _id: 0, date: '$_id', revenue: 1, bookings: 1 } }
+        ]
+      }
+    }
+  ]);
+
+  const totals = summary.totals[0] || { totalBookings: 0, totalRevenue: 0 };
+
+  res.status(200).json({
+    success: true,
+    data: {
+      totalRevenue: totals.totalRevenue,
+      totalBookings: totals.totalBookings,
+      bookingsPerVenue: summary.bookingsPerVenue,
+      recentBookings: summary.recentBookings,
+      revenueOverTime: summary.revenueOverTime
+    }
+  });
+});

@@ -28,7 +28,7 @@ exports.protect = async (req,res,next) => {
         }
 
         next();
-    } catch(err) {
+    } catch(_err) {
         return res.status(401).json({
             success: false , error: 'Not authorized'
         });
