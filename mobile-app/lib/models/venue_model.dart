@@ -7,9 +7,9 @@ class VenueModel {
   final List<String> images;
   final List<String> amenities;
   final String ownerId;
-  final double averageRating; // Add
+  final double averageRating;
 
-  VenueModel({
+  const VenueModel({
     required this.id,
     required this.name,
     required this.description,
@@ -18,20 +18,29 @@ class VenueModel {
     required this.images,
     required this.amenities,
     required this.ownerId,
-    this.averageRating = 0.0, // Add
+    this.averageRating = 0.0,
   });
 
+  String? get primaryImage => images.isNotEmpty ? images.first : null;
+
   factory VenueModel.fromJson(Map<String, dynamic> json) {
+    final dynamic owner = json['owner'];
+
     return VenueModel(
-      id: json['_id'] ?? '',
-      name: json['name'] ?? 'Unknown Venue',
-      description: json['description'] ?? '',
-      location: json['location'] ?? '',
-      pricePerHour: (json['pricePerHour'] ?? 0).toDouble(),
-      images: List<String>.from(json['images'] ?? []),
-      amenities: List<String>.from(json['amenities'] ?? []),
-      ownerId: json['owner'] is Map ? json['owner']['_id'] : (json['owner'] ?? ''),
-      averageRating: (json['averageRating'] ?? 0).toDouble(), // Add
+      id: json['_id'] as String? ?? json['id'] as String? ?? '',
+      name: json['name'] as String? ?? 'Unknown Venue',
+      description: json['description'] as String? ?? '',
+      location: json['location'] as String? ?? '',
+      pricePerHour: (json['pricePerHour'] as num? ?? 0).toDouble(),
+      images: List<String>.from(json['images'] as List? ?? const <String>[]),
+      amenities:
+          List<String>.from(json['amenities'] as List? ?? const <String>[]),
+      // `owner` is a raw id on list endpoints and a populated document on some
+      // detail endpoints.
+      ownerId: owner is Map
+          ? (owner['_id'] as String? ?? '')
+          : (owner as String? ?? ''),
+      averageRating: (json['averageRating'] as num? ?? 0).toDouble(),
     );
   }
 }

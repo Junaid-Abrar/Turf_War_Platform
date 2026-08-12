@@ -1,66 +1,146 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'providers/user_provider.dart';
-import 'providers/venue_provider.dart';
-import 'providers/booking_provider.dart';
-import 'providers/payment_provider.dart'; // Add
-import 'core/splash_screen.dart';
-import 'core/notification_service.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
+import 'core/config/app_config.dart';
+import 'core/network/api_client.dart';
+import 'core/network/token_storage.dart';
+import 'core/router/app_router.dart';
+import 'core/services/notification_service.dart';
+import 'core/utils/logger.dart';
+import 'features/auth/providers/user_provider.dart';
+import 'features/auth/services/auth_service.dart';
+import 'features/bookings/providers/booking_provider.dart';
+import 'features/bookings/services/booking_service.dart';
+import 'features/payments/providers/payment_provider.dart';
+import 'features/payments/services/payment_service.dart';
+import 'features/venues/providers/venue_provider.dart';
+import 'features/venues/services/venue_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  print("Handling a background message: ${message.messageId}");
+  AppLogger.info('Background message: ${message.messageId}');
 }
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  
-  // Initialize Stripe
-  Stripe.publishableKey = "pk_test_placeholder";
-  await Stripe.instance.applySettings();
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  await _initFirebase();
+  await _initStripe();
 
-  runApp(const MyApp());
+  runApp(const TurfWarApp());
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+/// Firebase powers chat and push. A missing or misconfigured
+/// `google-services.json` should degrade those features, not stop the app from
+/// starting.
+Future<void> _initFirebase() async {
+  try {
+    await Firebase.initializeApp();
+    if (!AppConfig.demoMode) {
+      FirebaseMessaging.onBackgroundMessage(
+        _firebaseMessagingBackgroundHandler,
+      );
+    }
+  } catch (e, s) {
+    AppLogger.error('Firebase initialisation failed', e, s);
+  }
+}
+
+/// The publishable key now comes from `--dart-define` rather than the
+/// `pk_test_placeholder` literal that used to be committed. With no key
+/// configured, Stripe is left uninitialised and [PaymentProvider] simulates the
+/// sheet instead of throwing at the point of payment.
+Future<void> _initStripe() async {
+  if (!AppConfig.hasStripeKey) {
+    AppLogger.info('No Stripe key configured; payments run in simulated mode');
+    return;
+  }
+  try {
+    Stripe.publishableKey = AppConfig.stripePublishableKey;
+    await Stripe.instance.applySettings();
+  } catch (e, s) {
+    AppLogger.error('Stripe initialisation failed', e, s);
+  }
+}
+
+class TurfWarApp extends StatefulWidget {
+  const TurfWarApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  State<TurfWarApp> createState() => _TurfWarAppState();
 }
 
-class _MyAppState extends State<MyApp> {
-  final NotificationService _notificationService = NotificationService();
+class _TurfWarAppState extends State<TurfWarApp> {
+  // Built once in initState rather than inline in build, so a rebuild does not
+  // discard the router (and with it the navigation stack) or the ApiClient.
+  late final TokenStorage _tokenStorage;
+  late final ApiClient _apiClient;
+  late final AuthService _authService;
+  late final VenueService _venueService;
+  late final BookingService _bookingService;
+  late final PaymentService _paymentService;
+  late final NotificationService _notificationService;
+  late final UserProvider _userProvider;
+  late final GoRouter _router;
 
   @override
   void initState() {
     super.initState();
-    _notificationService.init();
+
+    _tokenStorage = TokenStorage();
+    _apiClient = ApiClient(tokenStorage: _tokenStorage);
+
+    _authService = AuthService(_apiClient);
+    _venueService = VenueService(_apiClient);
+    _bookingService = BookingService(_apiClient);
+    _paymentService = PaymentService(_apiClient);
+    _notificationService = NotificationService(_authService);
+
+    _userProvider = UserProvider(
+      authService: _authService,
+      tokenStorage: _tokenStorage,
+      notificationService: _notificationService,
+    );
+
+    // Any 401 anywhere in the app clears the session; the router's redirect
+    // then moves the user to the login screen. No screen has to handle this.
+    _apiClient.onUnauthorized = _userProvider.logout;
+
+    _router = buildRouter(_userProvider);
   }
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => UserProvider()),
-        ChangeNotifierProvider(create: (_) => VenueProvider()),
-        ChangeNotifierProvider(create: (_) => BookingProvider()),
-        ChangeNotifierProvider(create: (_) => PaymentProvider()), // Add
+        Provider<ApiClient>.value(value: _apiClient),
+        Provider<VenueService>.value(value: _venueService),
+        Provider<BookingService>.value(value: _bookingService),
+        ChangeNotifierProvider<UserProvider>.value(value: _userProvider),
+        ChangeNotifierProvider<VenueProvider>(
+          create: (_) => VenueProvider(_venueService),
+        ),
+        ChangeNotifierProvider<BookingProvider>(
+          create: (_) => BookingProvider(_bookingService),
+        ),
+        ChangeNotifierProvider<PaymentProvider>(
+          create: (_) => PaymentProvider(_paymentService),
+        ),
       ],
-      child: MaterialApp(
+      child: MaterialApp.router(
         title: 'Turf War',
+        debugShowCheckedModeBanner: false,
+        // Phase 5 replaces this with the full design system (light + dark).
         theme: ThemeData(
-          primarySwatch: Colors.green,
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
           useMaterial3: true,
         ),
-        home: const SplashScreen(),
+        routerConfig: _router,
       ),
     );
   }

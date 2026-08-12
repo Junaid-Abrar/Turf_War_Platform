@@ -36,10 +36,9 @@ jobs:
         with:
           channel: stable
       - run: flutter pub get
-      # TODO(phase-4/5): drop continue-on-error once analysis_options.yaml is tightened
-      # and the pre-existing avoid_print / use_build_context_synchronously findings are fixed.
-      - run: flutter analyze
-        continue-on-error: true
+      # Ungated as of Phase 4: analysis_options.yaml now treats avoid_print and
+      # use_build_context_synchronously as errors, and the codebase is clean.
+      - run: flutter analyze --fatal-infos
       - run: flutter test --coverage
 
   web-admin:

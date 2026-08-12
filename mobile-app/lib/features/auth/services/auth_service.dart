@@ -1,75 +1,54 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import '../../../core/network/api_client.dart';
 import '../../../models/user_model.dart';
-import '../../../core/api_constants.dart';
 
+/// Auth endpoints. Header construction, token injection, JSON decoding and
+/// error translation all live in [ApiClient]; this class only knows the paths
+/// and the response shapes.
 class AuthService {
-  final String _authUrl = '${ApiConstants.baseUrl}${ApiConstants.authEndpoint}';
+  final ApiClient _api;
 
-  // Helper for headers
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    'bypass-tunnel-reminder': 'true', // Bypasses LocalTunnel warning
-  };
+  const AuthService(this._api);
 
-  // Register User
-  Future<UserModel> register(String name, String email, String password) async {
-    final response = await http.post(
-      Uri.parse('$_authUrl${ApiConstants.registerEndpoint}'),
-      headers: _headers,
-      body: jsonEncode({
+  Future<UserModel> register(
+    String name,
+    String email,
+    String password,
+  ) async {
+    final Map<String, dynamic> body = await _api.post(
+      '/auth/register',
+      body: <String, dynamic>{
         'name': name.trim(),
         'email': email.trim(),
-        'password': password.trim(),
+        'password': password,
         'role': 'user',
-      }),
+      },
     );
-
-    final body = jsonDecode(response.body);
-
-    if (response.statusCode == 201) {
-      return UserModel.fromJson(body['data']);
-    } else {
-      throw Exception(body['error'] ?? 'Registration failed');
-    }
+    return UserModel.fromJson(unwrapObject(body));
   }
 
-  // Login User
   Future<UserModel> login(String email, String password) async {
-    final response = await http.post(
-      Uri.parse('$_authUrl${ApiConstants.loginEndpoint}'),
-      headers: _headers,
-      body: jsonEncode({
-        'email': email.trim(), 
-        'password': password.trim(), 
-      }),
+    final Map<String, dynamic> body = await _api.post(
+      '/auth/login',
+      body: <String, dynamic>{'email': email.trim(), 'password': password},
     );
-
-    final body = jsonDecode(response.body);
-
-    if (response.statusCode == 200) {
-      return UserModel.fromJson(body['user'], token: body['token']);
-    } else {
-      throw Exception(body['error'] ?? 'Login failed');
-    }
+    // Login is the one endpoint that puts the token beside `user` rather than
+    // inside a `data` envelope.
+    return UserModel.fromJson(
+      body['user'] as Map<String, dynamic>? ?? <String, dynamic>{},
+      token: body['token'] as String?,
+    );
   }
 
-  // Get User Profile
-  Future<UserModel> getUserProfile(String token) async {
-    final headers = _headers;
-    headers['Authorization'] = 'Bearer $token';
+  /// Fetches the current user using the token the interceptor attaches.
+  Future<UserModel> getProfile({String? token}) async {
+    final Map<String, dynamic> body = await _api.get('/auth/me');
+    return UserModel.fromJson(unwrapObject(body), token: token);
+  }
 
-    final response = await http.get(
-      Uri.parse('$_authUrl/me'),
-      headers: headers,
+  Future<void> updateFcmToken(String fcmToken) async {
+    await _api.put(
+      '/auth/fcm-token',
+      body: <String, dynamic>{'fcmToken': fcmToken},
     );
-
-    final body = jsonDecode(response.body);
-
-    if (response.statusCode == 200) {
-      return UserModel.fromJson(body['data'], token: token);
-    } else {
-      throw Exception('Failed to load user');
-    }
   }
 }
