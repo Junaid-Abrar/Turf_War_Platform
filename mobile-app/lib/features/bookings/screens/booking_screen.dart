@@ -5,10 +5,14 @@ import 'package:provider/provider.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/widgets.dart';
 import '../../../models/booking_model.dart';
 import '../../../models/venue_model.dart';
 import '../../payments/providers/payment_provider.dart';
 import '../providers/booking_provider.dart';
+import '../widgets/calendar_strip.dart';
+import '../widgets/time_slot_grid.dart';
 
 class BookingScreen extends StatefulWidget {
   final VenueModel venue;
@@ -21,12 +25,16 @@ class BookingScreen extends StatefulWidget {
 
 class _BookingScreenState extends State<BookingScreen> {
   static const List<String> _allSlots = <String>[
-    '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
-    '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
-    '18:00', '19:00', '20:00', '21:00', '22:00', '23:00',
+    '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', //
+    '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', //
+    '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', //
   ];
 
-  DateTime _selectedDate = DateTime.now();
+  /// How far ahead a slot can be booked. Shared by the strip and the picker so
+  /// they cannot disagree about what is reachable.
+  static const int _bookingWindowDays = 30;
+
+  DateTime _selectedDate = DateUtils.dateOnly(DateTime.now());
   String? _selectedSlot;
   List<BookingModel> _bookedSlots = <BookingModel>[];
   bool _isLoadingAvailability = false;
@@ -61,24 +69,49 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
-  bool _isSlotBooked(String slot) {
+  SlotState _slotState(String slot) {
+    if (_selectedSlot == slot) return SlotState.selected;
+
     final String dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
-    return _bookedSlots.any(
+    final bool isBooked = _bookedSlots.any(
       (BookingModel b) => b.date == dateStr && b.startTime == slot,
     );
-  }
+    if (isBooked) return SlotState.booked;
 
-  /// Slots earlier than now are not bookable on today's date.
-  bool _isSlotPast(String slot) {
+    // Slots earlier than now are not bookable on today's date.
     final DateTime now = DateTime.now();
-    if (!DateUtils.isSameDay(_selectedDate, now)) return false;
-    final int hour = int.parse(slot.split(':')[0]);
-    return hour <= now.hour;
+    if (DateUtils.isSameDay(_selectedDate, now) &&
+        int.parse(slot.split(':')[0]) <= now.hour) {
+      return SlotState.past;
+    }
+
+    return SlotState.available;
   }
 
   String _endTimeFor(String startTime) {
     final int hour = int.parse(startTime.split(':')[0]);
     return '${(hour + 1).toString().padLeft(2, '0')}:00';
+  }
+
+  void _onDateSelected(DateTime date) {
+    setState(() {
+      _selectedDate = date;
+      // The slot numbers repeat across days but their availability does not,
+      // so a selection cannot survive a date change.
+      _selectedSlot = null;
+    });
+  }
+
+  Future<void> _pickDate() async {
+    final DateTime now = DateTime.now();
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateUtils.dateOnly(now),
+      lastDate: now.add(const Duration(days: _bookingWindowDays)),
+    );
+    if (picked == null || !mounted) return;
+    _onDateSelected(DateUtils.dateOnly(picked));
   }
 
   Future<void> _handleBooking() async {
@@ -90,6 +123,7 @@ class _BookingScreenState extends State<BookingScreen> {
     final BookingProvider bookingProvider = context.read<BookingProvider>();
     final PaymentProvider paymentProvider = context.read<PaymentProvider>();
     final GoRouter router = GoRouter.of(context);
+    final ColorScheme colors = Theme.of(context).colorScheme;
 
     setState(() => _isSubmitting = true);
 
@@ -105,10 +139,7 @@ class _BookingScreenState extends State<BookingScreen> {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
+        SnackBar(content: Text(e.message), backgroundColor: colors.error),
       );
       // A conflicting slot means our availability snapshot is stale.
       await _fetchAvailability();
@@ -125,10 +156,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
     if (result.isSuccess) {
       bookingProvider.markPaid(booking.id);
-      await _showResultDialog(
-        title: 'Booking confirmed',
-        message: 'Your slot is booked and paid for.',
-      );
+      await _showConfirmation(booking);
       if (!mounted) return;
       router.goNamed(AppRoutes.myBookings);
       return;
@@ -149,38 +177,33 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  Future<void> _showResultDialog({
-    required String title,
-    required String message,
-  }) {
+  Future<void> _showConfirmation(BookingModel booking) {
     return showDialog<void>(
       context: context,
-      builder: (BuildContext dialogContext) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('OK'),
+      builder: (BuildContext dialogContext) {
+        final ThemeData theme = Theme.of(dialogContext);
+        return AlertDialog(
+          icon: Icon(
+            Icons.check_circle,
+            size: 48,
+            color: theme.colorScheme.primary,
           ),
-        ],
-      ),
+          title: const Text('You are booked'),
+          content: Text(
+            '${widget.venue.name}\n'
+            '${DateFormat('EEEE, d MMMM').format(_selectedDate)}\n'
+            '${booking.startTime} – ${booking.endTime}',
+            textAlign: TextAlign.center,
+          ),
+          actions: <Widget>[
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('View my bookings'),
+            ),
+          ],
+        );
+      },
     );
-  }
-
-  Future<void> _pickDate() async {
-    final DateTime now = DateTime.now();
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 30)),
-    );
-    if (picked == null || !mounted) return;
-    setState(() {
-      _selectedDate = picked;
-      _selectedSlot = null;
-    });
   }
 
   @override
@@ -192,193 +215,259 @@ class _BookingScreenState extends State<BookingScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select a slot'),
+        title: const Text('Pick a slot'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
           onPressed: () => context.goNamed(
             AppRoutes.venueDetails,
             pathParameters: <String, String>{'venueId': widget.venue.id},
             extra: widget.venue,
           ),
         ),
+        actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            tooltip: 'Pick another date',
+            onPressed: busy ? null : _pickDate,
+          ),
+        ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.md,
+            ),
+            child: Text(
+              widget.venue.name,
+              style: theme.textTheme.titleMedium,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          CalendarStrip(
+            selected: _selectedDate,
+            onSelected: busy ? (_) {} : _onDateSelected,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.xl,
+              AppSpacing.lg,
+              AppSpacing.md,
+            ),
             child: Row(
               children: <Widget>[
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text('Date', style: theme.textTheme.titleMedium),
-                      Text(
-                        DateFormat('EEEE, MMM d, yyyy').format(_selectedDate),
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ],
+                  child: Text(
+                    DateFormat('EEEE, d MMMM').format(_selectedDate),
+                    style: theme.textTheme.titleMedium,
                   ),
                 ),
-                OutlinedButton.icon(
-                  onPressed: busy ? null : _pickDate,
-                  icon: const Icon(Icons.calendar_today, size: 18),
-                  label: const Text('Change'),
-                ),
+                const SlotLegend(),
               ],
-            ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Available slots',
-                style: theme.textTheme.titleLarge,
-              ),
             ),
           ),
           Expanded(
             child: _isLoadingAvailability
-                ? const Center(child: CircularProgressIndicator())
-                : GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      childAspectRatio: 2.5,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                    ),
-                    itemCount: _allSlots.length,
-                    itemBuilder: (BuildContext context, int index) {
-                      final String slot = _allSlots[index];
-                      final bool unavailable =
-                          _isSlotBooked(slot) || _isSlotPast(slot);
-                      final bool selected = _selectedSlot == slot;
-
-                      return _SlotTile(
-                        label: slot,
-                        unavailable: unavailable,
-                        selected: selected,
-                        onTap: unavailable || busy
-                            ? null
-                            : () => setState(() => _selectedSlot = slot),
-                      );
-                    },
+                ? const _SlotGridSkeleton()
+                : TimeSlotGrid(
+                    slots: _allSlots,
+                    stateFor: _slotState,
+                    enabled: !busy,
+                    onSelected: (String slot) =>
+                        setState(() => _selectedSlot = slot),
                   ),
           ),
-          _buildSummaryBar(theme, busy),
+          _SummaryBar(
+            venue: widget.venue,
+            selectedSlot: _selectedSlot,
+            endTime: _selectedSlot == null ? null : _endTimeFor(_selectedSlot!),
+            busy: busy,
+            onConfirm: _handleBooking,
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildSummaryBar(ThemeData theme, bool busy) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        boxShadow: const <BoxShadow>[
-          BoxShadow(color: Colors.black12, blurRadius: 10),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: <Widget>[
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'Total (1 hour)',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.outline),
-                ),
-                Text(
-                  '\$${widget.venue.pricePerHour.toStringAsFixed(2)}',
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const Spacer(),
-            FilledButton(
-              onPressed: (_selectedSlot == null || busy) ? null : _handleBooking,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 14,
-                ),
-              ),
-              child: busy
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Book & pay'),
-            ),
-          ],
+/// Skeleton in the shape of the slot grid, so the layout does not jump when
+/// availability lands.
+class _SlotGridSkeleton extends StatelessWidget {
+  const _SlotGridSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerLoader(
+      child: GridView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: 2.2,
+          crossAxisSpacing: AppSpacing.sm,
+          mainAxisSpacing: AppSpacing.sm,
+        ),
+        itemCount: 12,
+        itemBuilder: (_, __) => const ShimmerBox(
+          height: 48,
+          borderRadius: AppRadius.mdAll,
         ),
       ),
     );
   }
 }
 
-/// One time slot in the grid. Booked, past, selected and available each read
-/// differently rather than only booked-vs-not.
-class _SlotTile extends StatelessWidget {
-  final String label;
-  final bool unavailable;
-  final bool selected;
-  final VoidCallback? onTap;
+/// The pinned price breakdown and confirm action.
+class _SummaryBar extends StatelessWidget {
+  final VenueModel venue;
+  final String? selectedSlot;
+  final String? endTime;
+  final bool busy;
+  final VoidCallback onConfirm;
 
-  const _SlotTile({
-    required this.label,
-    required this.unavailable,
-    required this.selected,
-    this.onTap,
+  const _SummaryBar({
+    required this.venue,
+    required this.selectedSlot,
+    required this.endTime,
+    required this.busy,
+    required this.onConfirm,
   });
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colors = Theme.of(context).colorScheme;
+    final ThemeData theme = Theme.of(context);
+    final bool hasSlot = selectedSlot != null;
 
-    final Color background = unavailable
-        ? colors.surfaceContainerHighest
-        : selected
-            ? colors.primary
-            : Colors.transparent;
-    final Color foreground = unavailable
-        ? colors.outline
-        : selected
-            ? colors.onPrimary
-            : colors.primary;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: background,
-          border: Border.all(
-            color: unavailable ? Colors.transparent : colors.primary,
-          ),
-          borderRadius: BorderRadius.circular(8),
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          top: BorderSide(color: theme.colorScheme.outlineVariant),
         ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            color: foreground,
-            fontWeight: FontWeight.bold,
-            decoration: unavailable ? TextDecoration.lineThrough : null,
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              // The breakdown appears only once a slot is chosen; before that
+              // there is nothing to total and a "$0.00" would be misleading.
+              AnimatedSize(
+                duration: AppDurations.normal,
+                curve: Curves.easeOut,
+                child: hasSlot
+                    ? _PriceBreakdown(
+                        venue: venue,
+                        startTime: selectedSlot!,
+                        endTime: endTime!,
+                      )
+                    : const SizedBox(width: double.infinity),
+              ),
+              if (hasSlot) AppSpacing.gapMd,
+              AppButton(
+                label: hasSlot ? 'Confirm and pay' : 'Select a time',
+                expand: true,
+                isLoading: busy,
+                onPressed: hasSlot ? onConfirm : null,
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Line-by-line cost of the selected slot.
+///
+/// The total shown here is the client's arithmetic; the backend recomputes it
+/// from the venue's rate when the booking is created (a Phase 1 fix — price
+/// used to be sent from the client). They agree for a one-hour slot, and the
+/// server's figure is what is charged.
+class _PriceBreakdown extends StatelessWidget {
+  final VenueModel venue;
+  final String startTime;
+  final String endTime;
+
+  const _PriceBreakdown({
+    required this.venue,
+    required this.startTime,
+    required this.endTime,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    const int hours = 1;
+    final double total = venue.pricePerHour * hours;
+
+    return Column(
+      children: <Widget>[
+        _Line(
+          label: '$startTime – $endTime',
+          value: '$hours hour',
+          isMuted: true,
+        ),
+        AppSpacing.gapXs,
+        _Line(
+          label: '\$${venue.pricePerHour.toStringAsFixed(2)} × $hours hour',
+          value: '\$${total.toStringAsFixed(2)}',
+          isMuted: true,
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          child: Divider(),
+        ),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text('Total', style: theme.textTheme.titleMedium),
+            ),
+            Text(
+              '\$${total.toStringAsFixed(2)}',
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _Line extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool isMuted;
+
+  const _Line({
+    required this.label,
+    required this.value,
+    this.isMuted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final TextStyle? style = theme.textTheme.bodySmall?.copyWith(
+      color: isMuted ? theme.colorScheme.onSurfaceVariant : null,
+    );
+
+    return Row(
+      children: <Widget>[
+        Expanded(child: Text(label, style: style)),
+        Text(value, style: style),
+      ],
     );
   }
 }

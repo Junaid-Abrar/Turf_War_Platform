@@ -5,11 +5,14 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/router/app_routes.dart';
-import '../../../core/widgets/async_state_views.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/widgets.dart';
 import '../../../models/venue_model.dart';
 import '../../auth/providers/user_provider.dart';
 import '../providers/venue_provider.dart';
+import '../widgets/sport_category_row.dart';
 import '../widgets/venue_card.dart';
+import '../widgets/venue_filter_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,9 +25,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
 
-  double? _minPrice;
-  double? _maxPrice;
-  final Set<String> _selectedAmenities = <String>{};
+  VenueFilters _filters = const VenueFilters();
+  SportCategory _category = SportCategory.all;
 
   @override
   void initState() {
@@ -45,129 +47,52 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Waits for a pause in typing so a search is not fired per keystroke.
   void _onSearchChanged(String _) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), _performSearch);
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      // Redraws the clear button, which appears only once there is text.
+      if (mounted) setState(() {});
+      _performSearch();
+    });
   }
 
   void _performSearch() {
     if (!mounted) return;
+
+    // The backend has no sport field, so a category narrows the same free-text
+    // query the search box uses. Combining them keeps one request rather than
+    // filtering the result set client-side, which would break with pagination.
+    final String typed = _searchController.text.trim();
+    final String query = <String>[
+      if (typed.isNotEmpty) typed,
+      if (_category != SportCategory.all) _category.searchTerm,
+    ].join(' ');
+
     context.read<VenueProvider>().searchVenues(
-          query: _searchController.text.trim(),
-          minPrice: _minPrice,
-          maxPrice: _maxPrice,
-          amenities: _selectedAmenities.toList(),
+          query: query,
+          minPrice: _filters.minPrice,
+          maxPrice: _filters.maxPrice,
+          amenities: _filters.amenities.toList(),
         );
   }
 
   Future<void> _showFilterSheet() async {
-    // Edited on a copy so dismissing the sheet does not apply half-set filters.
-    double? minPrice = _minPrice;
-    double? maxPrice = _maxPrice;
-    final Set<String> amenities = <String>{..._selectedAmenities};
-
-    final bool? applied = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      builder: (BuildContext sheetContext) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setSheetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-                left: 16,
-                right: 16,
-                top: 16,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Filters',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(r'Price range ($/hr)'),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: TextFormField(
-                          initialValue: minPrice?.toStringAsFixed(0),
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: 'Min'),
-                          onChanged: (String value) =>
-                              minPrice = double.tryParse(value),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          initialValue: maxPrice?.toStringAsFixed(0),
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: 'Max'),
-                          onChanged: (String value) =>
-                              maxPrice = double.tryParse(value),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Amenities'),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: _amenityOptions.map((String amenity) {
-                      return FilterChip(
-                        label: Text(amenity),
-                        selected: amenities.contains(amenity),
-                        onSelected: (bool selected) {
-                          setSheetState(() {
-                            if (selected) {
-                              amenities.add(amenity);
-                            } else {
-                              amenities.remove(amenity);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: <Widget>[
-                      TextButton(
-                        onPressed: () {
-                          setSheetState(() {
-                            minPrice = null;
-                            maxPrice = null;
-                            amenities.clear();
-                          });
-                        },
-                        child: const Text('Clear'),
-                      ),
-                      const Spacer(),
-                      FilledButton(
-                        onPressed: () => Navigator.of(sheetContext).pop(true),
-                        child: const Text('Apply filters'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-
-    if (applied != true || !mounted) return;
-    setState(() {
-      _minPrice = minPrice;
-      _maxPrice = maxPrice;
-      _selectedAmenities
-        ..clear()
-        ..addAll(amenities);
-    });
+    final VenueFilters? applied = await showVenueFilterSheet(context, _filters);
+    if (applied == null || !mounted) return;
+    setState(() => _filters = applied);
     _performSearch();
+  }
+
+  void _onCategorySelected(SportCategory category) {
+    if (category == _category) return;
+    setState(() => _category = category);
+    _performSearch();
+  }
+
+  Future<void> _refresh() {
+    // Pull-to-refresh re-runs the active query rather than resetting to the
+    // full list, so a user who has filtered does not silently lose their
+    // filters by pulling down.
+    _performSearch();
+    return Future<void>.value();
   }
 
   @override
@@ -175,112 +100,131 @@ class _HomeScreenState extends State<HomeScreen> {
     final ThemeData theme = Theme.of(context);
     final UserProvider userProvider = context.watch<UserProvider>();
     final VenueProvider venueProvider = context.watch<VenueProvider>();
-    final bool hasFilters = _minPrice != null ||
-        _maxPrice != null ||
-        _selectedAmenities.isNotEmpty;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Turf War'),
-        actions: <Widget>[
-          IconButton(
-            icon: const Icon(Icons.calendar_month_outlined),
-            tooltip: 'My bookings',
-            onPressed: () => context.goNamed(AppRoutes.myBookings),
-          ),
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'Profile',
-            onPressed: () => context.goNamed(AppRoutes.profile),
-          ),
-        ],
-      ),
       floatingActionButton: (userProvider.user?.canManageVenues ?? false)
-          ? FloatingActionButton(
+          ? FloatingActionButton.extended(
               onPressed: () => context.goNamed(AppRoutes.addVenue),
-              tooltip: 'Add venue',
-              child: const Icon(Icons.add),
+              icon: const Icon(Icons.add),
+              label: const Text('List a venue'),
             )
           : null,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'Welcome, ${userProvider.user?.name ?? 'there'}',
-                  style: theme.textTheme.headlineSmall,
-                ),
-                Text(
-                  'Find your turf',
-                  style: theme.textTheme.bodyLarge
-                      ?.copyWith(color: theme.colorScheme.outline),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        textInputAction: TextInputAction.search,
-                        onChanged: _onSearchChanged,
-                        onSubmitted: (_) => _performSearch(),
-                        decoration: InputDecoration(
-                          hintText: 'Search venues…',
-                          prefixIcon: const Icon(Icons.search),
-                          suffixIcon: _searchController.text.isEmpty
-                              ? null
-                              : IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    _performSearch();
-                                  },
-                                ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                0,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              _greeting(userProvider.user?.name),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              'Find your turf',
+                              style: theme.textTheme.headlineMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.calendar_month_outlined),
+                        tooltip: 'My bookings',
+                        onPressed: () => context.goNamed(AppRoutes.myBookings),
+                      ),
+                      _ProfileButton(
+                        initial: userProvider.user?.initial ?? '?',
+                        onPressed: () => context.goNamed(AppRoutes.profile),
+                      ),
+                    ],
+                  ),
+                  AppSpacing.gapLg,
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          textInputAction: TextInputAction.search,
+                          onChanged: _onSearchChanged,
+                          onSubmitted: (_) => _performSearch(),
+                          decoration: InputDecoration(
+                            hintText: 'Search venues or locations',
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            // Vertically compact so the search row does not
+                            // dominate the header.
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.lg,
+                              vertical: AppSpacing.md,
+                            ),
+                            suffixIcon: _searchController.text.isEmpty
+                                ? null
+                                : IconButton(
+                                    icon: const Icon(Icons.clear, size: 20),
+                                    tooltip: 'Clear search',
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() {});
+                                      _performSearch();
+                                    },
+                                  ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: Badge(
-                        isLabelVisible: hasFilters,
-                        child: const Icon(Icons.tune),
+                      AppSpacing.hGapSm,
+                      _FilterButton(
+                        activeCount: _filters.activeCount,
+                        onPressed: _showFilterSheet,
                       ),
-                      tooltip: 'Filters',
-                      onPressed: _showFilterSheet,
-                      style: IconButton.styleFrom(
-                        backgroundColor:
-                            theme.colorScheme.primaryContainer.withValues(
-                          alpha: 0.4,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          Expanded(child: _buildBody(venueProvider)),
-        ],
+            AppSpacing.gapLg,
+            SportCategoryRow(
+              selected: _category,
+              onSelected: _onCategorySelected,
+            ),
+            if (_filters.hasAny)
+              _ActiveFilterSummary(
+                filters: _filters,
+                onClear: () {
+                  setState(() => _filters = const VenueFilters());
+                  _performSearch();
+                },
+              ),
+            AppSpacing.gapSm,
+            Expanded(child: _buildBody(venueProvider)),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildBody(VenueProvider provider) {
+    // Skeletons only for the very first load; a refresh keeps the existing list
+    // on screen underneath the refresh indicator rather than blanking it.
     if (provider.isLoading && provider.venues.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const VenueListSkeleton();
     }
 
-    if (provider.hasError) {
+    if (provider.hasError && provider.venues.isEmpty) {
       return ErrorState(
         message: provider.error!,
         onRetry: () => context.read<VenueProvider>().fetchVenues(),
@@ -288,16 +232,43 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (provider.venues.isEmpty) {
-      return const EmptyState(
-        icon: Icons.search_off,
-        title: 'No venues found',
-        message: 'Try a different search or clear your filters.',
+      final bool isFiltered = _filters.hasAny ||
+          _category != SportCategory.all ||
+          _searchController.text.trim().isNotEmpty;
+
+      return EmptyState(
+        icon: isFiltered ? Icons.search_off : Icons.stadium_outlined,
+        title: isFiltered ? 'No matches' : 'No venues yet',
+        message: isFiltered
+            ? 'Nothing fits those filters. Try widening your search.'
+            : 'Venues added by owners will show up here.',
+        action: isFiltered
+            ? AppButton(
+                label: 'Clear filters',
+                variant: AppButtonVariant.secondary,
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {
+                    _filters = const VenueFilters();
+                    _category = SportCategory.all;
+                  });
+                  _performSearch();
+                },
+              )
+            : null,
       );
     }
 
     return RefreshIndicator(
-      onRefresh: () => context.read<VenueProvider>().fetchVenues(),
+      onRefresh: _refresh,
       child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.lg,
+          // Clears the extended FAB so the last card is fully reachable.
+          96,
+        ),
         itemCount: provider.venues.length,
         itemBuilder: (BuildContext context, int index) {
           final VenueModel venue = provider.venues[index];
@@ -315,13 +286,123 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  String _greeting(String? name) {
+    final int hour = DateTime.now().hour;
+    final String partOfDay = hour < 12
+        ? 'Good morning'
+        : hour < 18
+            ? 'Good afternoon'
+            : 'Good evening';
+    // Only the first name — full names run long enough to wrap the header.
+    final String firstName = (name ?? '').split(' ').first;
+    return firstName.isEmpty ? partOfDay : '$partOfDay, $firstName';
+  }
 }
 
-const List<String> _amenityOptions = <String>[
-  'Wifi',
-  'Parking',
-  'Showers',
-  'Lockers',
-  'Water',
-  'Floodlights',
-];
+/// Avatar button opening the profile screen.
+class _ProfileButton extends StatelessWidget {
+  final String initial;
+  final VoidCallback onPressed;
+
+  const _ProfileButton({required this.initial, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colors = Theme.of(context).colorScheme;
+
+    return IconButton(
+      tooltip: 'Profile',
+      onPressed: onPressed,
+      icon: CircleAvatar(
+        radius: 16,
+        backgroundColor: colors.primaryContainer,
+        child: Text(
+          initial,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: colors.onPrimaryContainer,
+              ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Filter button showing a count of the filters currently applied.
+class _FilterButton extends StatelessWidget {
+  final int activeCount;
+  final VoidCallback onPressed;
+
+  const _FilterButton({required this.activeCount, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colors = Theme.of(context).colorScheme;
+    final bool isActive = activeCount > 0;
+
+    return IconButton(
+      tooltip: 'Filters',
+      onPressed: onPressed,
+      icon: Badge(
+        isLabelVisible: isActive,
+        label: Text('$activeCount'),
+        child: const Icon(Icons.tune, size: 20),
+      ),
+      style: IconButton.styleFrom(
+        backgroundColor:
+            isActive ? colors.primaryContainer : colors.surfaceContainerLow,
+        foregroundColor:
+            isActive ? colors.onPrimaryContainer : colors.onSurfaceVariant,
+        minimumSize: const Size(52, 52),
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadius.mdAll,
+          side: BorderSide(color: colors.outlineVariant),
+        ),
+      ),
+    );
+  }
+}
+
+/// A one-line summary of the active price/amenity filters with a clear action,
+/// so applied filters are visible without reopening the sheet.
+class _ActiveFilterSummary extends StatelessWidget {
+  final VenueFilters filters;
+  final VoidCallback onClear;
+
+  const _ActiveFilterSummary({required this.filters, required this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.sm,
+        0,
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(
+            Icons.filter_alt_outlined,
+            size: 16,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          AppSpacing.hGapXs,
+          Expanded(
+            child: Text(
+              filters.summary,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          TextButton(onPressed: onClear, child: const Text('Clear')),
+        ],
+      ),
+    );
+  }
+}

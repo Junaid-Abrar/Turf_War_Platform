@@ -1,0 +1,16 @@
+# Test runner configuration.
+#
+# `test/tool/generate_icons_test.dart` is not a test — it rasterises the app
+# icon and splash artwork from the in-app logo painter. It is tagged `tool` and
+# excluded here so a normal `flutter test` (and therefore CI) never rewrites
+# committed asset files as a side effect of running the suite.
+#
+# Regenerate the artwork deliberately with:
+#   flutter test test/tool/generate_icons_test.dart --run-skipped
+#
+# (`--run-skipped` rather than `--tags tool`: selecting a tag narrows which
+# suites run, it does not clear the skip configured below.)
+
+tags:
+  tool:
+    skip: "Asset generator; run with --run-skipped to regenerate icons."

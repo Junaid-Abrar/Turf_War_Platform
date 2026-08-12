@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/widgets.dart';
 import '../providers/user_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -30,12 +32,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
 
     setState(() => _isSubmitting = true);
     try {
       await context.read<UserProvider>().register(
-            _nameController.text,
-            _emailController.text,
+            _nameController.text.trim(),
+            _emailController.text.trim(),
             _passwordController.text,
           );
       if (!mounted) return;
@@ -60,83 +63,120 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create account'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back to login',
           onPressed: () => context.goNamed(AppRoutes.login),
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                TextFormField(
-                  controller: _nameController,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Full name',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person_outline),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.xxl),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Form(
+                key: _formKey,
+                child: AutofillGroup(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      Text(
+                        'Create your account',
+                        style: theme.textTheme.headlineMedium,
+                      ),
+                      AppSpacing.gapSm,
+                      Text(
+                        'One account books every pitch on the platform.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      AppSpacing.gapXxxl,
+                      AppTextField(
+                        controller: _nameController,
+                        label: 'Full name',
+                        prefixIcon: Icons.person_outline,
+                        textCapitalization: TextCapitalization.words,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const <String>[AutofillHints.name],
+                        enabled: !_isSubmitting,
+                        validator: (String? value) =>
+                            (value == null || value.trim().isEmpty)
+                                ? 'Enter your name'
+                                : null,
+                      ),
+                      AppSpacing.gapLg,
+                      AppTextField(
+                        controller: _emailController,
+                        label: 'Email',
+                        prefixIcon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const <String>[AutofillHints.email],
+                        enabled: !_isSubmitting,
+                        validator: (String? value) {
+                          final String email = value?.trim() ?? '';
+                          if (email.isEmpty) return 'Enter your email';
+                          // Mirrors the backend's express-validator isEmail
+                          // check so the user is told before a round trip.
+                          if (!email.contains('@') || !email.contains('.')) {
+                            return 'Enter a valid email address';
+                          }
+                          return null;
+                        },
+                      ),
+                      AppSpacing.gapLg,
+                      AppTextField(
+                        controller: _passwordController,
+                        label: 'Password',
+                        hint: 'At least 6 characters',
+                        prefixIcon: Icons.lock_outline,
+                        obscure: true,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const <String>[
+                          AutofillHints.newPassword,
+                        ],
+                        enabled: !_isSubmitting,
+                        onSubmitted: (_) => _register(),
+                        validator: (String? value) =>
+                            (value == null || value.length < 6)
+                                ? 'Password must be at least 6 characters'
+                                : null,
+                      ),
+                      AppSpacing.gapXxl,
+                      AppButton(
+                        label: 'Create account',
+                        expand: true,
+                        isLoading: _isSubmitting,
+                        onPressed: _register,
+                      ),
+                      AppSpacing.gapLg,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          Text(
+                            'Already have an account?',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _isSubmitting
+                                ? null
+                                : () => context.goNamed(AppRoutes.login),
+                            child: const Text('Log in'),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  validator: (String? value) =>
-                      (value == null || value.trim().isEmpty)
-                          ? 'Enter your name'
-                          : null,
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                  validator: (String? value) {
-                    final String email = value?.trim() ?? '';
-                    if (email.isEmpty) return 'Enter your email';
-                    // Mirrors the backend's express-validator isEmail check so
-                    // the user is told before a round trip.
-                    if (!email.contains('@') || !email.contains('.')) {
-                      return 'Enter a valid email';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock_outline),
-                  ),
-                  validator: (String? value) => (value == null || value.length < 6)
-                      ? 'Password must be at least 6 characters'
-                      : null,
-                ),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: _isSubmitting ? null : _register,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.all(16),
-                  ),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Create account'),
-                ),
-              ],
+              ),
             ),
           ),
         ),

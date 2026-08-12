@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_spacing.dart';
+import 'app_button.dart';
+
 /// Placeholder shown when a list came back empty.
 ///
-/// Phase 5 replaces these with the full design-system versions; they exist now
-/// so no screen has to inline a bare `Center(child: Text('No venues'))`.
+/// The illustration is a large tinted circle behind the icon rather than a bare
+/// grey glyph — enough visual weight that an empty screen reads as a designed
+/// state instead of a rendering failure.
 class EmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -21,26 +25,44 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.xxxl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(icon, size: 56, color: theme.colorScheme.outline),
-            const SizedBox(height: 16),
-            Text(title, style: theme.textTheme.titleMedium),
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.xxl),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHigh,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 44,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            AppSpacing.gapXl,
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleLarge,
+            ),
             if (message != null) ...<Widget>[
-              const SizedBox(height: 8),
+              AppSpacing.gapSm,
               Text(
                 message!,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.outline),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
             if (action != null) ...<Widget>[
-              const SizedBox(height: 20),
+              AppSpacing.gapXl,
               action!,
             ],
           ],
@@ -58,39 +80,88 @@ class ErrorState extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
 
-  const ErrorState({super.key, required this.message, this.onRetry});
+  /// Overrides the default heading, e.g. for an offline-specific message.
+  final String title;
+
+  const ErrorState({
+    super.key,
+    required this.message,
+    this.onRetry,
+    this.title = 'Something went wrong',
+  });
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.xxxl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(
-              Icons.error_outline,
-              size: 56,
-              color: theme.colorScheme.error,
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.xxl),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.cloud_off_rounded,
+                size: 44,
+                color: theme.colorScheme.onErrorContainer,
+              ),
             ),
-            const SizedBox(height: 16),
+            AppSpacing.gapXl,
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleLarge,
+            ),
+            AppSpacing.gapSm,
             Text(
               message,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyLarge,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             if (onRetry != null) ...<Widget>[
-              const SizedBox(height: 20),
-              FilledButton.icon(
+              AppSpacing.gapXl,
+              AppButton(
+                label: 'Try again',
+                icon: Icons.refresh,
+                variant: AppButtonVariant.secondary,
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Try again'),
               ),
             ],
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A section heading with an optional trailing action.
+///
+/// Used down the venue detail page and the profile screen so every "About",
+/// "Amenities", "Reviews" title has identical weight and spacing.
+class SectionHeader extends StatelessWidget {
+  final String title;
+  final Widget? action;
+
+  const SectionHeader({super.key, required this.title, this.action});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+        ),
+        if (action != null) action!,
+      ],
     );
   }
 }

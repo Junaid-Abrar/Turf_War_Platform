@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -10,6 +11,8 @@ import 'core/network/api_client.dart';
 import 'core/network/token_storage.dart';
 import 'core/router/app_router.dart';
 import 'core/services/notification_service.dart';
+import 'core/theme/app_theme.dart';
+import 'core/theme/theme_provider.dart';
 import 'core/utils/logger.dart';
 import 'features/auth/providers/user_provider.dart';
 import 'features/auth/services/auth_service.dart';
@@ -27,12 +30,21 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final WidgetsBinding binding = WidgetsFlutterBinding.ensureInitialized();
+  // Holds the native splash on screen until the first Flutter frame is ready,
+  // so there is no blank window between the two.
+  FlutterNativeSplash.preserve(widgetsBinding: binding);
 
   await _initFirebase();
   await _initStripe();
 
-  runApp(const TurfWarApp());
+  // Read before the first frame: loading the theme lazily would paint the
+  // default light theme and then swap to dark a frame later.
+  final ThemeProvider themeProvider = await ThemeProvider.load();
+
+  runApp(TurfWarApp(themeProvider: themeProvider));
+
+  FlutterNativeSplash.remove();
 }
 
 /// Firebase powers chat and push. A missing or misconfigured
@@ -69,7 +81,11 @@ Future<void> _initStripe() async {
 }
 
 class TurfWarApp extends StatefulWidget {
-  const TurfWarApp({super.key});
+  /// Loaded in [main] before the first frame so the app opens directly in the
+  /// user's saved theme.
+  final ThemeProvider themeProvider;
+
+  const TurfWarApp({super.key, required this.themeProvider});
 
   @override
   State<TurfWarApp> createState() => _TurfWarAppState();
@@ -131,16 +147,24 @@ class _TurfWarAppState extends State<TurfWarApp> {
         ChangeNotifierProvider<PaymentProvider>(
           create: (_) => PaymentProvider(_paymentService),
         ),
-      ],
-      child: MaterialApp.router(
-        title: 'Turf War',
-        debugShowCheckedModeBanner: false,
-        // Phase 5 replaces this with the full design system (light + dark).
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-          useMaterial3: true,
+        ChangeNotifierProvider<ThemeProvider>.value(
+          value: widget.themeProvider,
         ),
-        routerConfig: _router,
+      ],
+      // Only the MaterialApp rebuilds when the theme preference changes; the
+      // providers above it are untouched, so switching themes does not discard
+      // any in-flight request or cached list.
+      child: Consumer<ThemeProvider>(
+        builder: (BuildContext context, ThemeProvider themeProvider, _) {
+          return MaterialApp.router(
+            title: 'Turf War',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
+            themeMode: themeProvider.themeMode,
+            routerConfig: _router,
+          );
+        },
       ),
     );
   }

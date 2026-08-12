@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
-import '../../../core/widgets/async_state_views.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/widgets.dart';
 import '../../../models/booking_model.dart';
 import '../../payments/providers/payment_provider.dart';
 import '../providers/booking_provider.dart';
@@ -17,6 +19,11 @@ class MyBookingsScreen extends StatefulWidget {
 }
 
 class _MyBookingsScreenState extends State<MyBookingsScreen> {
+  /// The booking currently being paid, so only that card shows a spinner. The
+  /// screen used to read `PaymentProvider.isLoading` on every card at once,
+  /// which spun all of them during a single payment.
+  String? _payingBookingId;
+
   @override
   void initState() {
     super.initState();
@@ -29,28 +36,33 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   Future<void> _pay(BookingModel booking) async {
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final BookingProvider bookingProvider = context.read<BookingProvider>();
+    final ColorScheme colors = Theme.of(context).colorScheme;
 
+    setState(() => _payingBookingId = booking.id);
     final PaymentResult result = await context
         .read<PaymentProvider>()
         .makePayment(bookingId: booking.id);
 
     if (!mounted) return;
+    setState(() => _payingBookingId = null);
 
     if (result.isSuccess) {
       bookingProvider.markPaid(booking.id);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Payment successful')),
+        const SnackBar(content: Text('Payment received. You are all set.')),
       );
       await bookingProvider.fetchMyBookings();
       return;
     }
 
+    // A deliberate dismissal of the payment sheet is not an error worth
+    // shouting about.
     if (result.isCancelled) return;
 
     messenger.showSnackBar(
       SnackBar(
         content: Text(result.message ?? 'Payment failed'),
-        backgroundColor: Theme.of(context).colorScheme.error,
+        backgroundColor: colors.error,
       ),
     );
   }
@@ -59,9 +71,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text('Cancel booking?'),
+        title: const Text('Cancel this booking?'),
         content: Text(
-          'This will release your ${booking.startTime} slot on ${booking.date}.',
+          'Your ${booking.startTime} slot on '
+          '${_formatDate(booking.date)} will be released for others to book.',
         ),
         actions: <Widget>[
           TextButton(
@@ -70,6 +83,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+            ),
             child: const Text('Cancel booking'),
           ),
         ],
@@ -82,12 +99,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     try {
       await context.read<BookingProvider>().cancelBooking(booking.id);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Booking cancelled')),
+        const SnackBar(content: Text('Booking cancelled.')),
       );
     } on ApiException catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -102,13 +117,20 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           title: const Text('My bookings'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
             onPressed: () => context.goNamed(AppRoutes.home),
           ),
-          bottom: const TabBar(
+          bottom: TabBar(
             tabs: <Widget>[
-              Tab(text: 'Upcoming'),
-              Tab(text: 'Past'),
-              Tab(text: 'Cancelled'),
+              _CountedTab(
+                label: 'Upcoming',
+                count: provider.upcomingBookings.length,
+              ),
+              _CountedTab(label: 'Past', count: provider.pastBookings.length),
+              _CountedTab(
+                label: 'Cancelled',
+                count: provider.cancelledBookings.length,
+              ),
             ],
           ),
         ),
@@ -119,10 +141,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
 
   Widget _buildBody(BookingProvider provider) {
     if (provider.isLoading && provider.myBookings.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const BookingListSkeleton();
     }
 
-    if (provider.error != null) {
+    if (provider.error != null && provider.myBookings.isEmpty) {
       return ErrorState(
         message: provider.error!,
         onRetry: () => context.read<BookingProvider>().fetchMyBookings(),
@@ -131,22 +153,38 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
 
     return TabBarView(
       children: <Widget>[
-        _buildList(provider.upcomingBookings, 'No upcoming bookings'),
-        _buildList(provider.pastBookings, 'No past bookings'),
-        _buildList(provider.cancelledBookings, 'No cancelled bookings'),
+        _buildList(
+          provider.upcomingBookings,
+          title: 'Nothing booked yet',
+          message: 'Find a pitch and grab a slot — it takes about a minute.',
+        ),
+        _buildList(
+          provider.pastBookings,
+          title: 'No past bookings',
+          message: 'Slots you have already played show up here.',
+        ),
+        _buildList(
+          provider.cancelledBookings,
+          title: 'No cancellations',
+          message: 'Bookings you cancel are kept here for your records.',
+        ),
       ],
     );
   }
 
-  Widget _buildList(List<BookingModel> bookings, String emptyTitle) {
+  Widget _buildList(
+    List<BookingModel> bookings, {
+    required String title,
+    required String message,
+  }) {
     if (bookings.isEmpty) {
       return EmptyState(
-        icon: Icons.event_busy,
-        title: emptyTitle,
-        message: 'Book a turf from the home screen to see it here.',
-        action: FilledButton(
+        icon: Icons.event_available_outlined,
+        title: title,
+        message: message,
+        action: AppButton(
+          label: 'Browse venues',
           onPressed: () => context.goNamed(AppRoutes.home),
-          child: const Text('Browse venues'),
         ),
       );
     }
@@ -154,16 +192,55 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     return RefreshIndicator(
       onRefresh: () => context.read<BookingProvider>().fetchMyBookings(),
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         itemCount: bookings.length,
         itemBuilder: (BuildContext context, int index) {
+          final BookingModel booking = bookings[index];
           return _BookingCard(
-            booking: bookings[index],
-            isPaying: context.watch<PaymentProvider>().isLoading,
-            onPay: () => _pay(bookings[index]),
-            onCancel: () => _cancel(bookings[index]),
+            booking: booking,
+            isPaying: _payingBookingId == booking.id,
+            onPay: () => _pay(booking),
+            onCancel: () => _cancel(booking),
+            onOpenVenue: () => context.goNamed(
+              AppRoutes.venueDetails,
+              pathParameters: <String, String>{'venueId': booking.venueId},
+            ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// The API returns dates as `yyyy-MM-dd` strings; anything unparseable is shown
+/// verbatim rather than swallowed.
+String _formatDate(String raw) {
+  final DateTime? date = DateTime.tryParse(raw);
+  return date == null ? raw : DateFormat('EEE, d MMM').format(date);
+}
+
+/// Tab label with the number of bookings in that bucket.
+class _CountedTab extends StatelessWidget {
+  final String label;
+  final int count;
+
+  const _CountedTab({required this.label, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tab(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Text(label),
+          if (count > 0) ...<Widget>[
+            AppSpacing.hGapXs,
+            Text(
+              '($count)',
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -174,12 +251,14 @@ class _BookingCard extends StatelessWidget {
   final bool isPaying;
   final VoidCallback onPay;
   final VoidCallback onCancel;
+  final VoidCallback onOpenVenue;
 
   const _BookingCard({
     required this.booking,
     required this.isPaying,
     required this.onPay,
     required this.onCancel,
+    required this.onOpenVenue,
   });
 
   @override
@@ -191,33 +270,27 @@ class _BookingCard extends StatelessWidget {
     final bool canPay = !booking.isPaid && !booking.isCancelled;
     final bool canCancel = !booking.isCancelled;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: AppCard(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        onTap: onOpenVenue,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: theme.colorScheme.surfaceContainerHighest,
+                ClipRRect(
+                  borderRadius: AppRadius.mdAll,
+                  child: AppNetworkImage(
+                    url: image,
+                    width: 76,
+                    height: 76,
+                    fallbackIconSize: 28,
                   ),
-                  clipBehavior: Clip.antiAlias,
-                  child: image != null
-                      ? Image.network(
-                          image,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.sports_soccer),
-                        )
-                      : const Icon(Icons.sports_soccer),
                 ),
-                const SizedBox(width: 16),
+                AppSpacing.hGapMd,
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,61 +299,64 @@ class _BookingCard extends StatelessWidget {
                         booking.venueName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                        style: theme.textTheme.titleMedium,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        booking.date,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: theme.colorScheme.outline),
+                      AppSpacing.gapXs,
+                      _IconLine(
+                        icon: Icons.event_outlined,
+                        text: _formatDate(booking.date),
                       ),
-                      Text(
-                        '${booking.startTime} – ${booking.endTime}',
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w500),
+                      AppSpacing.gapXxs,
+                      _IconLine(
+                        icon: Icons.schedule,
+                        text: '${booking.startTime} – ${booking.endTime}',
                       ),
                     ],
                   ),
                 ),
+                AppSpacing.hGapSm,
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: <Widget>[
-                    _StatusBadge(booking: booking),
-                    const SizedBox(height: 8),
+                    StatusBadge.forBookingStatus(booking.status),
+                    AppSpacing.gapSm,
                     Text(
                       '\$${booking.price.toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleMedium,
                     ),
+                    if (!booking.isCancelled) ...<Widget>[
+                      AppSpacing.gapXs,
+                      StatusBadge.forPaymentStatus(booking.paymentStatus),
+                    ],
                   ],
                 ),
               ],
             ),
             if (canPay || canCancel) ...<Widget>[
-              const Divider(height: 24),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                child: Divider(),
+              ),
               Row(
                 children: <Widget>[
                   if (canCancel)
                     Expanded(
-                      child: OutlinedButton(
-                        onPressed: onCancel,
-                        child: const Text('Cancel'),
+                      child: AppButton(
+                        label: 'Cancel',
+                        variant: AppButtonVariant.secondary,
+                        expand: true,
+                        onPressed: isPaying ? null : onCancel,
                       ),
                     ),
-                  if (canPay && canCancel) const SizedBox(width: 12),
+                  if (canPay && canCancel) AppSpacing.hGapMd,
                   if (canPay)
                     Expanded(
                       flex: 2,
-                      child: FilledButton(
-                        onPressed: isPaying ? null : onPay,
-                        child: isPaying
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text('Pay now'),
+                      child: AppButton(
+                        label: 'Pay \$${booking.price.toStringAsFixed(2)}',
+                        expand: true,
+                        isLoading: isPaying,
+                        onPressed: onPay,
                       ),
                     ),
                 ],
@@ -293,35 +369,31 @@ class _BookingCard extends StatelessWidget {
   }
 }
 
-class _StatusBadge extends StatelessWidget {
-  final BookingModel booking;
+class _IconLine extends StatelessWidget {
+  final IconData icon;
+  final String text;
 
-  const _StatusBadge({required this.booking});
+  const _IconLine({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colors = Theme.of(context).colorScheme;
+    final ThemeData theme = Theme.of(context);
 
-    final Color color = booking.isCancelled
-        ? colors.error
-        : booking.isConfirmed
-            ? Colors.green
-            : Colors.orange;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        booking.status.toUpperCase(),
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
+    return Row(
+      children: <Widget>[
+        Icon(icon, size: 14, color: theme.colorScheme.onSurfaceVariant),
+        AppSpacing.hGapXs,
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }
