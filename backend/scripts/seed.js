@@ -166,6 +166,15 @@ async function seed() {
   }
   console.log(`Seeded ${reviewSpecs.length} reviews`);
 
+  // Review.save()'s post-save hook recalculates ratings without awaiting it
+  // (deliberately fire-and-forget for the live server, so a request doesn't
+  // block on it). Redo it here, awaited, so ratings are settled before we
+  // disconnect below.
+  const reviewedVenueIds = [...new Set(reviewSpecs.map((s) => String(createdVenues[s.venue]._id)))];
+  for (const venueId of reviewedVenueIds) {
+    await Review.getAverageRating(venueId);
+  }
+
   console.log('\nDemo credentials (all use password "password123"):');
   for (const u of USERS) {
     console.log(`  ${u.role.padEnd(12)} ${u.email}`);
