@@ -8,8 +8,8 @@ React admin dashboard.
 
 | | |
 |---|---|
-| **Web admin** | _pending Vercel deploy — see `web-admin/`_ |
-| **Mobile (web build)** | _pending Vercel deploy — see `web-demo/`_ |
+| **Web admin** | https://turf-war-platform.vercel.app |
+| **Mobile (web build)** | https://turf-war-platform-pfwq.vercel.app |
 | **Android APK** | See [Releases](../../releases) |
 | **API** | https://turf-war-platform.onrender.com (`/health`, `/api-docs`) |
 
