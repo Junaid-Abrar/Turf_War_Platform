@@ -8,7 +8,7 @@ import EmptyState from './EmptyState';
 import ConfirmDialog from './ConfirmDialog';
 import EditVenueModal from './EditVenueModal';
 
-const VenueList = ({ refreshTrigger }) => {
+const VenueList = ({ refreshTrigger, isAdmin }) => {
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -88,6 +88,11 @@ const VenueList = ({ refreshTrigger }) => {
                   <MapPin size={14} className="me-1" />
                   {venue.location}
                 </Card.Text>
+                {isAdmin && (
+                  <Card.Text className="text-muted small mb-2">
+                    Owner: {venue.owner?.name || 'Unknown'}
+                  </Card.Text>
+                )}
                 <Card.Text>
                   {venue.description.substring(0, 100)}...
                 </Card.Text>

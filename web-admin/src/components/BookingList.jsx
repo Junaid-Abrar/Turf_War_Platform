@@ -6,7 +6,7 @@ import api from '../api/axios';
 import { TableSkeleton } from './Skeletons';
 import EmptyState from './EmptyState';
 
-const BookingList = ({ refreshTrigger }) => {
+const BookingList = ({ refreshTrigger, isAdmin }) => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -86,6 +86,7 @@ const BookingList = ({ refreshTrigger }) => {
           <thead className="bg-light">
             <tr>
               <th>Venue</th>
+              {isAdmin && <th>Owner</th>}
               <th>Customer</th>
               <th>Date</th>
               <th>Time</th>
@@ -99,6 +100,7 @@ const BookingList = ({ refreshTrigger }) => {
             {bookings.map((booking) => (
               <tr key={booking._id}>
                 <td>{booking.venue?.name || 'Unknown'}</td>
+                {isAdmin && <td>{booking.venue?.owner?.name || 'Unknown'}</td>}
                 <td>
                   <div>{booking.user?.name || 'Unknown'}</div>
                   <small className="text-muted">{booking.user?.email}</small>

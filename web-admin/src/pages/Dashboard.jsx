@@ -28,11 +28,15 @@ const Dashboard = () => {
     setRefreshKey(prev => prev + 1);
   };
 
+  const isAdmin = user?.role === 'admin';
+
   return (
     <>
       <Navbar bg="dark" variant="dark" expand="lg" className="mb-4">
         <Container>
-          <Navbar.Brand href="#home">Turf War Admin</Navbar.Brand>
+          <Navbar.Brand href="#home">
+            {isAdmin ? 'Turf War Admin' : 'Turf War — My Venues'}
+          </Navbar.Brand>
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav" className="justify-content-end">
             <Nav className="align-items-center">
@@ -57,22 +61,24 @@ const Dashboard = () => {
 
       <Container>
         <div className="d-flex justify-content-between align-items-center mb-4">
-          <h2>Dashboard</h2>
-          <Button variant="success" onClick={() => setShowAddModal(true)}>
-            <PlusCircle size={18} className="me-2" />
-            Add Venue
-          </Button>
+          <h2>{isAdmin ? 'Platform Administration' : 'My Venues'}</h2>
+          {!isAdmin && (
+            <Button variant="success" onClick={() => setShowAddModal(true)}>
+              <PlusCircle size={18} className="me-2" />
+              Add Venue
+            </Button>
+          )}
         </div>
 
         <Tabs defaultActiveKey="overview" className="mb-4">
           <Tab eventKey="overview" title={<><BarChart2 size={16} className="me-1"/> Overview</>}>
-            <AnalyticsDashboard refreshTrigger={refreshKey} />
+            <AnalyticsDashboard refreshTrigger={refreshKey} isAdmin={isAdmin} />
           </Tab>
           <Tab eventKey="venues" title={<><LayoutGrid size={16} className="me-1"/> Venues</>}>
-            <VenueList refreshTrigger={refreshKey} />
+            <VenueList refreshTrigger={refreshKey} isAdmin={isAdmin} />
           </Tab>
           <Tab eventKey="bookings" title={<><Calendar size={16} className="me-1"/> Bookings</>}>
-            <BookingList refreshTrigger={refreshKey} />
+            <BookingList refreshTrigger={refreshKey} isAdmin={isAdmin} />
           </Tab>
           <Tab eventKey="chats" title={<><MessageSquare size={16} className="me-1"/> Messages</>}>
             <ChatSystem />

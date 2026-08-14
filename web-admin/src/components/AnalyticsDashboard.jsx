@@ -7,7 +7,7 @@ import api from '../api/axios';
 import { TrendingUp, Users, DollarSign } from 'lucide-react';
 import { MetricCardSkeleton } from './Skeletons';
 
-const AnalyticsDashboard = ({ refreshTrigger }) => {
+const AnalyticsDashboard = ({ refreshTrigger, isAdmin }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -43,7 +43,7 @@ const AnalyticsDashboard = ({ refreshTrigger }) => {
 
   return (
     <div>
-      <h4 className="mb-4">Overview</h4>
+      <h4 className="mb-4">{isAdmin ? 'Platform Overview' : 'Overview'}</h4>
 
       {/* Metrics Cards */}
       <Row className="mb-4">
@@ -52,7 +52,7 @@ const AnalyticsDashboard = ({ refreshTrigger }) => {
             <Card.Body>
               <DollarSign size={32} className="text-success mb-2" />
               <h3>${data.totalRevenue}</h3>
-              <p className="text-muted">Total Revenue</p>
+              <p className="text-muted">{isAdmin ? 'Platform Revenue' : 'Your Revenue'}</p>
             </Card.Body>
           </Card>
         </Col>
@@ -70,7 +70,7 @@ const AnalyticsDashboard = ({ refreshTrigger }) => {
             <Card.Body>
               <TrendingUp size={32} className="text-info mb-2" />
               <h3>{data.bookingsPerVenue.length}</h3>
-              <p className="text-muted">Active Venues</p>
+              <p className="text-muted">{isAdmin ? 'Active Venues (All Owners)' : 'Active Venues'}</p>
             </Card.Body>
           </Card>
         </Col>
@@ -78,7 +78,7 @@ const AnalyticsDashboard = ({ refreshTrigger }) => {
 
       {/* Revenue over time */}
       <Card className="shadow-sm border-0 p-3 mb-4">
-        <h5 className="mb-3">Revenue (Last 30 Days)</h5>
+        <h5 className="mb-3">{isAdmin ? 'Platform Revenue (Last 30 Days)' : 'Revenue (Last 30 Days)'}</h5>
         <div style={{ height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data.revenueOverTime}>
