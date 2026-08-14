@@ -12,10 +12,13 @@ const DEMO_PASSWORD = 'password123';
 const USERS = [
   { name: 'Ada Admin', email: 'admin@turfwar.demo.com', role: 'admin' },
   { name: 'Owen Owner', email: 'owner@turfwar.demo.com', role: 'venue_owner' },
+  { name: 'Olivia Owner', email: 'owner2@turfwar.demo.com', role: 'venue_owner' },
   { name: 'Uma User', email: 'user@turfwar.demo.com', role: 'user' },
   { name: 'Nate Newman', email: 'nate@turfwar.demo.com', role: 'user' }
 ];
 
+// `owner` picks which USERS email each venue belongs to — split across two owners
+// so the admin/owner isolation (Phase 8.5) is actually demonstrable, not just claimed.
 const VENUES = [
   {
     name: 'Riverside Football Turf',
@@ -23,7 +26,8 @@ const VENUES = [
     location: 'Riverside, Downtown',
     pricePerHour: 25,
     amenities: ['Floodlights', 'Parking', 'Changing Rooms'],
-    images: ['https://images.unsplash.com/photo-1459865264687-595d652de67e?w=800']
+    images: ['https://images.unsplash.com/photo-1459865264687-595d652de67e?w=800'],
+    owner: 'owner@turfwar.demo.com'
   },
   {
     name: 'Uptown Basketball Court',
@@ -31,7 +35,8 @@ const VENUES = [
     location: 'Uptown Sports Complex',
     pricePerHour: 30,
     amenities: ['Scoreboard', 'Seating', 'Wifi'],
-    images: ['https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800']
+    images: ['https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800'],
+    owner: 'owner@turfwar.demo.com'
   },
   {
     name: 'Greenfield Cricket Ground',
@@ -39,7 +44,8 @@ const VENUES = [
     location: 'Greenfield Park',
     pricePerHour: 40,
     amenities: ['Practice Nets', 'Parking', 'Refreshments'],
-    images: ['https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800']
+    images: ['https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800'],
+    owner: 'owner@turfwar.demo.com'
   },
   {
     name: 'Downtown Tennis Club',
@@ -47,7 +53,8 @@ const VENUES = [
     location: 'Downtown Sports Club',
     pricePerHour: 20,
     amenities: ['Racket Rental', 'Wifi', 'Parking'],
-    images: ['https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800']
+    images: ['https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800'],
+    owner: 'owner@turfwar.demo.com'
   },
   {
     name: 'Harbor Futsal Arena',
@@ -55,7 +62,8 @@ const VENUES = [
     location: 'Harbor District',
     pricePerHour: 22,
     amenities: ['Floodlights', 'Changing Rooms'],
-    images: ['https://images.unsplash.com/photo-1552667466-07770ae110d0?w=800']
+    images: ['https://images.unsplash.com/photo-1552667466-07770ae110d0?w=800'],
+    owner: 'owner@turfwar.demo.com'
   },
   {
     name: 'Sunset Badminton Hall',
@@ -63,7 +71,8 @@ const VENUES = [
     location: 'Sunset Plaza',
     pricePerHour: 15,
     amenities: ['Equipment Rental', 'Wifi', 'Parking'],
-    images: ['https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800']
+    images: ['https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800'],
+    owner: 'owner2@turfwar.demo.com'
   },
   {
     name: 'Northside Volleyball Court',
@@ -71,7 +80,8 @@ const VENUES = [
     location: 'Northside Beach Park',
     pricePerHour: 18,
     amenities: ['Floodlights', 'Showers'],
-    images: ['https://images.unsplash.com/photo-1592656094267-764a45160876?w=800']
+    images: ['https://images.unsplash.com/photo-1592656094267-764a45160876?w=800'],
+    owner: 'owner2@turfwar.demo.com'
   },
   {
     name: 'Central Park Multi-Sport Field',
@@ -79,7 +89,8 @@ const VENUES = [
     location: 'Central Park',
     pricePerHour: 28,
     amenities: ['Equipment Rental', 'Parking', 'Refreshments'],
-    images: ['https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800']
+    images: ['https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800'],
+    owner: 'owner2@turfwar.demo.com'
   }
 ];
 
@@ -112,21 +123,27 @@ async function seed() {
   }
   console.log(`Seeded ${USERS.length} users (password for all: "${DEMO_PASSWORD}")`);
 
-  const owner = createdUsers['owner@turfwar.demo.com'];
   const createdVenues = [];
   for (const v of VENUES) {
-    createdVenues.push(await Venue.create({ ...v, owner: owner._id }));
+    const { owner: ownerEmail, ...venueFields } = v;
+    createdVenues.push(await Venue.create({ ...venueFields, owner: createdUsers[ownerEmail]._id }));
   }
   console.log(`Seeded ${createdVenues.length} venues`);
 
   const regularUsers = [createdUsers['user@turfwar.demo.com'], createdUsers['nate@turfwar.demo.com']];
+  // Venues 0-4 belong to owner@turfwar.demo.com, 5-7 to owner2@turfwar.demo.com —
+  // bookings deliberately touch both ranges so each owner has demonstrable data
+  // and admin's platform-wide totals are visibly non-zero across both.
   const bookingSpecs = [
     { venue: 0, user: 0, date: daysFromNow(-10), startTime: '18:00', endTime: '19:00', status: 'confirmed', paymentStatus: 'paid' },
     { venue: 1, user: 1, date: daysFromNow(-5), startTime: '10:00', endTime: '11:00', status: 'confirmed', paymentStatus: 'paid' },
     { venue: 2, user: 0, date: daysFromNow(-2), startTime: '09:00', endTime: '11:00', status: 'cancelled', paymentStatus: 'unpaid' },
     { venue: 3, user: 1, date: daysFromNow(2), startTime: '17:00', endTime: '18:00', status: 'pending', paymentStatus: 'unpaid' },
     { venue: 0, user: 1, date: daysFromNow(4), startTime: '19:00', endTime: '20:00', status: 'confirmed', paymentStatus: 'paid' },
-    { venue: 4, user: 0, date: daysFromNow(6), startTime: '20:00', endTime: '21:00', status: 'pending', paymentStatus: 'unpaid' }
+    { venue: 4, user: 0, date: daysFromNow(6), startTime: '20:00', endTime: '21:00', status: 'pending', paymentStatus: 'unpaid' },
+    { venue: 5, user: 0, date: daysFromNow(-7), startTime: '11:00', endTime: '12:00', status: 'confirmed', paymentStatus: 'paid' },
+    { venue: 6, user: 1, date: daysFromNow(-3), startTime: '19:00', endTime: '21:00', status: 'confirmed', paymentStatus: 'paid' },
+    { venue: 7, user: 0, date: daysFromNow(3), startTime: '16:00', endTime: '17:00', status: 'pending', paymentStatus: 'unpaid' }
   ];
 
   for (const spec of bookingSpecs) {
@@ -153,7 +170,8 @@ async function seed() {
     { venue: 0, user: 1, rating: 5, comment: 'Great turf, floodlights made a huge difference for our evening match.' },
     { venue: 1, user: 0, rating: 4, comment: 'Solid hardwood court, could use better seating.' },
     { venue: 2, user: 1, rating: 5, comment: 'Best cricket ground in the area, nets are a great bonus.' },
-    { venue: 3, user: 0, rating: 3, comment: 'Courts are fine but rental rackets were worn out.' }
+    { venue: 3, user: 0, rating: 3, comment: 'Courts are fine but rental rackets were worn out.' },
+    { venue: 6, user: 0, rating: 5, comment: 'Great volleyball court, sand is well maintained and the lights are bright.' }
   ];
 
   for (const spec of reviewSpecs) {
