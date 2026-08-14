@@ -174,6 +174,13 @@ router.post('/confirm', protect, asyncHandler(async (req, res, next) => {
     if (paymentIntent.status === 'succeeded') {
       await markBookingPaid(booking._id);
     }
+  } else if (booking.paymentStatus !== 'paid' && !booking.stripePaymentIntentId && process.env.DEMO_MODE === 'true') {
+    // The public web demo stubs the Stripe payment sheet client-side (no
+    // PaymentIntent is ever created), so there is nothing to verify against
+    // Stripe. Only take the client's word for it when this server is itself
+    // explicitly running in demo mode — a real deployment always has
+    // DEMO_MODE unset and falls through, requiring a verified PaymentIntent.
+    await markBookingPaid(booking._id);
   }
 
   const current = await Booking.findById(bookingId);

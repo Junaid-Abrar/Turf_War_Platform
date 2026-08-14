@@ -54,6 +54,16 @@ class PaymentProvider extends ChangeNotifier {
       if (AppConfig.demoMode || !AppConfig.hasStripeKey) {
         AppLogger.info('Demo mode: simulating a successful payment');
         await Future<void>.delayed(const Duration(milliseconds: 600));
+        // No PaymentIntent exists to verify, so the backend only accepts this
+        // when it is itself configured with DEMO_MODE=true. Without this
+        // call the booking is never actually marked paid server-side, and
+        // the next refetch reverts the optimistic "paid" state back to
+        // unpaid — the demo needs this exactly as much as the real flow does.
+        try {
+          await _paymentService.confirmPayment(bookingId);
+        } on ApiException catch (e) {
+          AppLogger.error('Demo payment confirm call failed', e);
+        }
         return const PaymentResult.success();
       }
 

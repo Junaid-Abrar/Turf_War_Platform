@@ -152,24 +152,67 @@ describe('POST /api/payments/confirm', () => {
   });
 
   it('reports unpaid without calling Stripe when no PaymentIntent was ever created', async () => {
-    const { user: owner } = await createAuthedUser({ role: 'venue_owner' });
-    const venue = await makeVenue(owner);
-    const { user: bookingUser, token } = await createAuthedUser({ role: 'user' });
-    const booking = await Booking.create({
-      user: bookingUser._id,
-      venue: venue._id,
-      date: '2026-09-01',
-      startTime: '18:00',
-      endTime: '19:00',
-      price: 20
-    });
+    const originalDemoMode = process.env.DEMO_MODE;
+    delete process.env.DEMO_MODE;
+    try {
+      const { user: owner } = await createAuthedUser({ role: 'venue_owner' });
+      const venue = await makeVenue(owner);
+      const { user: bookingUser, token } = await createAuthedUser({ role: 'user' });
+      const booking = await Booking.create({
+        user: bookingUser._id,
+        venue: venue._id,
+        date: '2026-09-01',
+        startTime: '18:00',
+        endTime: '19:00',
+        price: 20
+      });
 
-    const res = await request(app)
-      .post('/api/payments/confirm')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ bookingId: booking._id.toString() });
+      const res = await request(app)
+        .post('/api/payments/confirm')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ bookingId: booking._id.toString() });
 
-    expect(res.status).toBe(200);
-    expect(res.body.paymentStatus).toBe('unpaid');
+      expect(res.status).toBe(200);
+      expect(res.body.paymentStatus).toBe('unpaid');
+    } finally {
+      if (originalDemoMode === undefined) {
+        delete process.env.DEMO_MODE;
+      } else {
+        process.env.DEMO_MODE = originalDemoMode;
+      }
+    }
+  });
+
+  it('marks a booking paid without a PaymentIntent when the server runs in DEMO_MODE', async () => {
+    const originalDemoMode = process.env.DEMO_MODE;
+    process.env.DEMO_MODE = 'true';
+    try {
+      const { user: owner } = await createAuthedUser({ role: 'venue_owner' });
+      const venue = await makeVenue(owner);
+      const { user: bookingUser, token } = await createAuthedUser({ role: 'user' });
+      const booking = await Booking.create({
+        user: bookingUser._id,
+        venue: venue._id,
+        date: '2026-09-01',
+        startTime: '18:00',
+        endTime: '19:00',
+        price: 20
+      });
+
+      const res = await request(app)
+        .post('/api/payments/confirm')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ bookingId: booking._id.toString() });
+
+      expect(res.status).toBe(200);
+      expect(res.body.paymentStatus).toBe('paid');
+      expect(res.body.status).toBe('confirmed');
+    } finally {
+      if (originalDemoMode === undefined) {
+        delete process.env.DEMO_MODE;
+      } else {
+        process.env.DEMO_MODE = originalDemoMode;
+      }
+    }
   });
 });
