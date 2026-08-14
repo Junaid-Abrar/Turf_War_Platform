@@ -5,6 +5,7 @@ const { sendNotification } = require('../config/firebase'); // Import Notificati
 const asyncHandler = require('../middleware/asyncHandler');
 const ErrorResponse = require('../utils/ErrorResponse');
 const { paginate } = require('../utils/paginate');
+const { venueScopeFilter } = require('../utils/scopeVenues');
 
 // Computes duration in hours from 'HH:MM' strings, e.g. '18:00' -> '19:30' = 1.5
 function durationHours(startTime, endTime) {
@@ -107,29 +108,35 @@ exports.getMyBookings = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Get bookings for venues owned by the logged-in user
+// @desc    Get bookings — platform-wide for admin, own venues for owner
 // @route   GET /api/bookings/owner
 // @access  Private (Owner/Admin)
 exports.getOwnerBookings = asyncHandler(async (req, res) => {
-  // 1. Find venues owned by this user
-  const venues = await Venue.find({ owner: req.user.id });
+  const isAdmin = req.user.role === 'admin';
+  let bookingFilter = {};
 
-  if (!venues.length) {
-    return res.status(200).json({
-      success: true, count: 0, page: 1, limit: 0, total: 0, totalPages: 1, data: []
-    });
+  if (!isAdmin) {
+    const venues = await Venue.find(venueScopeFilter(req.user));
+
+    if (!venues.length) {
+      return res.status(200).json({
+        success: true, count: 0, page: 1, limit: 0, total: 0, totalPages: 1, data: []
+      });
+    }
+
+    bookingFilter = { venue: { $in: venues.map((v) => v._id) } };
   }
 
-  const venueIds = venues.map((v) => v._id);
-
-  // 2. Find bookings for these venues
   const { data, page, limit, total, totalPages } = await paginate(
     Booking,
-    { venue: { $in: venueIds } },
+    bookingFilter,
     req.query,
     {
       defaultSort: '-date -startTime',
-      populate: [{ path: 'user', select: 'name email' }, { path: 'venue', select: 'name' }]
+      populate: [
+        { path: 'user', select: 'name email' },
+        { path: 'venue', select: 'name owner', populate: { path: 'owner', select: 'name email' } }
+      ]
     }
   );
 

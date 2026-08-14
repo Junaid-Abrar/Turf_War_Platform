@@ -10,19 +10,26 @@ const EMPTY_ANALYTICS = {
   revenueOverTime: []
 };
 
-// @desc    Get analytics for owner
+// @desc    Get analytics — platform-wide for admin, own venues for owner
 // @route   GET /api/analytics
 // @access  Private (Owner/Admin)
 exports.getAnalytics = asyncHandler(async (req, res) => {
-  const venues = await Venue.find({ owner: req.user.id }).select('_id');
-  const venueIds = venues.map((v) => v._id);
+  const isAdmin = req.user.role === 'admin';
+  let venueMatchStage = [];
 
-  if (venueIds.length === 0) {
-    return res.status(200).json({ success: true, data: EMPTY_ANALYTICS });
+  if (!isAdmin) {
+    const venues = await Venue.find({ owner: req.user.id }).select('_id');
+    const venueIds = venues.map((v) => v._id);
+
+    if (venueIds.length === 0) {
+      return res.status(200).json({ success: true, data: EMPTY_ANALYTICS });
+    }
+
+    venueMatchStage = [{ $match: { venue: { $in: venueIds } } }];
   }
 
   const [summary] = await Booking.aggregate([
-    { $match: { venue: { $in: venueIds } } },
+    ...venueMatchStage,
     {
       $facet: {
         totals: [

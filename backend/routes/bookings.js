@@ -4,7 +4,7 @@ const {
   createBooking, getMyBookings, getVenueBookings, getOwnerBookings,
   cancelBooking, updateBookingStatus
 } = require('../controllers/bookings');
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const {
   createBookingRules, updateBookingStatusRules, checkValidation
 } = require('../middleware/validators');
@@ -56,7 +56,7 @@ router.get('/my', protect, getMyBookings);
  *     responses:
  *       200: { description: Paginated list of bookings }
  */
-router.get('/owner', protect, getOwnerBookings);
+router.get('/owner', protect, authorize('venue_owner', 'admin'), getOwnerBookings);
 
 /**
  * @openapi
@@ -117,6 +117,13 @@ router.patch('/:id/cancel', protect, cancelBooking);
  *       200: { description: Booking status updated }
  *       403: { description: Not authorized }
  */
-router.patch('/:id/status', protect, updateBookingStatusRules, checkValidation, updateBookingStatus);
+router.patch(
+  '/:id/status',
+  protect,
+  authorize('venue_owner', 'admin'),
+  updateBookingStatusRules,
+  checkValidation,
+  updateBookingStatus
+);
 
 module.exports = router;

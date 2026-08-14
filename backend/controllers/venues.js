@@ -3,6 +3,7 @@ const cloudinary = require('cloudinary').v2;
 const asyncHandler = require('../middleware/asyncHandler');
 const ErrorResponse = require('../utils/ErrorResponse');
 const { paginate } = require('../utils/paginate');
+const { venueScopeFilter } = require('../utils/scopeVenues');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -74,11 +75,11 @@ exports.updateVenue = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: venue });
 });
 
-// @desc    Get venues owned by the logged-in user
+// @desc    Get venues — all venues for admin, own venues for owner
 // @route   GET /api/venues/mine
 // @access  Private (venue_owner, admin)
 exports.getMyVenues = asyncHandler(async (req, res) => {
-  const venues = await Venue.find({ owner: req.user.id });
+  const venues = await Venue.find(venueScopeFilter(req.user)).populate('owner', 'name email');
 
   res.status(200).json({
     success: true,
