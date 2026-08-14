@@ -25,10 +25,13 @@ Seeded by `backend/scripts/seed.js`, all sharing one password:
 |---|---|---|
 | Admin | `admin@turfwar.demo.com` | `password123` |
 | Venue owner | `owner@turfwar.demo.com` | `password123` |
+| Venue owner | `owner2@turfwar.demo.com` | `password123` |
 | Player | `user@turfwar.demo.com` | `password123` |
 
 The web-admin dashboard only supports the `admin` and `venue_owner` roles.
-The `user` role is for the mobile app.
+The `user` role is for the mobile app. There are two seeded venue owners
+(5 venues / 3 venues) so you can see the admin's platform-wide view against
+each owner's scoped view — log in as one, then the other, to compare.
 
 ### About the web build of the mobile app
 
