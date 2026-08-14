@@ -35,7 +35,20 @@ class BookingProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _myBookings = await _bookingService.getMyBookings();
+      final List<BookingModel> fetched = await _bookingService.getMyBookings();
+      // Guard against a refetch racing ahead of the backend's own payment
+      // confirmation (e.g. the Stripe webhook not having landed yet): never
+      // let a fresh read downgrade a booking `markPaid` already flipped
+      // locally, since the paid card charge is already a fact by then.
+      final Set<String> locallyPaidIds = _myBookings
+          .where((BookingModel b) => b.paymentStatus == 'paid')
+          .map((BookingModel b) => b.id)
+          .toSet();
+      _myBookings = fetched
+          .map((BookingModel b) => locallyPaidIds.contains(b.id) && b.paymentStatus != 'paid'
+              ? b.copyWith(paymentStatus: 'paid')
+              : b)
+          .toList();
     } on ApiException catch (e) {
       _error = e.message;
     } finally {

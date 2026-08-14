@@ -68,6 +68,23 @@ class PaymentProvider extends ChangeNotifier {
       );
       await Stripe.instance.presentPaymentSheet();
 
+      // The sheet returning without throwing only means Stripe accepted the
+      // payment client-side — the backend's booking record is still 'unpaid'
+      // until the async webhook lands. Confirm synchronously here so a
+      // refetch right after this returns doesn't read stale pre-webhook
+      // status and put the "Pay" button back (the bug this guards against).
+      //
+      // The card has already been charged by this point, so a failure to
+      // reach /payments/confirm (e.g. a dropped connection) must not be
+      // reported as a payment failure — that would risk the user paying
+      // twice. The webhook is still in flight and will mark the booking paid
+      // server-side even if this call never lands.
+      try {
+        await _paymentService.confirmPayment(bookingId);
+      } on ApiException catch (e) {
+        AppLogger.error('Payment confirm call failed after Stripe success', e);
+      }
+
       return const PaymentResult.success();
     } on StripeException catch (e) {
       // Backing out of the sheet is a normal user action, not an error to

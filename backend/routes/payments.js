@@ -64,6 +64,45 @@ router.post('/create-payment-intent', protect, asyncHandler(async (req, res, nex
 }));
 
 /**
+ * Marks a booking paid/confirmed and fires the payment-success notifications.
+ * Called from both the webhook and the client-driven confirm endpoint, since
+ * either can be the first to observe a succeeded PaymentIntent. Idempotent —
+ * safe to call again if the other path already marked it paid.
+ */
+async function markBookingPaid(bookingId) {
+  const booking = await Booking.findById(bookingId).populate({
+    path: 'venue',
+    populate: { path: 'owner' }
+  });
+  if (!booking || booking.paymentStatus === 'paid') {
+    return;
+  }
+
+  booking.paymentStatus = 'paid';
+  booking.status = 'confirmed';
+  await booking.save();
+
+  const user = await User.findById(booking.user);
+  const venue = booking.venue;
+
+  if (user && user.fcmToken) {
+    sendNotification(
+      user.fcmToken,
+      'Payment Successful!',
+      `Your booking for ${venue.name} is confirmed.`
+    );
+  }
+
+  if (venue.owner && venue.owner.fcmToken) {
+    sendNotification(
+      venue.owner.fcmToken,
+      'New Confirmed Booking',
+      `Payment received for ${venue.name} booking on ${booking.date}.`
+    );
+  }
+}
+
+/**
  * @openapi
  * /payments/webhook:
  *   post:
@@ -88,39 +127,61 @@ router.post('/webhook', asyncHandler(async (req, res) => {
 
   if (event.type === 'payment_intent.succeeded') {
     const paymentIntent = event.data.object;
-    const bookingId = paymentIntent.metadata.bookingId;
-
-    const booking = await Booking.findById(bookingId).populate({
-      path: 'venue',
-      populate: { path: 'owner' }
-    });
-    if (booking) {
-      booking.paymentStatus = 'paid';
-      booking.status = 'confirmed';
-      await booking.save();
-
-      const user = await User.findById(booking.user);
-      const venue = booking.venue;
-
-      if (user && user.fcmToken) {
-        sendNotification(
-          user.fcmToken,
-          'Payment Successful!',
-          `Your booking for ${venue.name} is confirmed.`
-        );
-      }
-
-      if (venue.owner && venue.owner.fcmToken) {
-        sendNotification(
-          venue.owner.fcmToken,
-          'New Confirmed Booking',
-          `Payment received for ${venue.name} booking on ${booking.date}.`
-        );
-      }
-    }
+    await markBookingPaid(paymentIntent.metadata.bookingId);
   }
 
   res.json({ received: true });
+}));
+
+/**
+ * @openapi
+ * /payments/confirm:
+ *   post:
+ *     tags: [Payments]
+ *     summary: Client-driven fallback that verifies a PaymentIntent directly with Stripe and marks the booking paid, so confirmation does not depend solely on webhook delivery timing.
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [bookingId]
+ *             properties:
+ *               bookingId: { type: string }
+ *     responses:
+ *       200: { description: Current payment status for the booking }
+ *       403: { description: Not authorized to confirm this booking }
+ *       404: { description: Booking not found }
+ */
+router.post('/confirm', protect, asyncHandler(async (req, res, next) => {
+  const { bookingId } = req.body;
+
+  const booking = await Booking.findById(bookingId);
+  if (!booking) {
+    return next(new ErrorResponse('Booking not found', 404));
+  }
+
+  if (booking.user.toString() !== req.user.id) {
+    return next(new ErrorResponse('Not authorized to confirm this booking', 403));
+  }
+
+  // Ask Stripe directly rather than trusting the client's word that the
+  // payment sheet succeeded — this is the source of truth, same as the
+  // webhook, just polled synchronously instead of pushed asynchronously.
+  if (booking.paymentStatus !== 'paid' && booking.stripePaymentIntentId) {
+    const paymentIntent = await stripe.paymentIntents.retrieve(booking.stripePaymentIntentId);
+    if (paymentIntent.status === 'succeeded') {
+      await markBookingPaid(booking._id);
+    }
+  }
+
+  const current = await Booking.findById(bookingId);
+  res.status(200).json({
+    success: true,
+    paymentStatus: current.paymentStatus,
+    status: current.status
+  });
 }));
 
 module.exports = router;
