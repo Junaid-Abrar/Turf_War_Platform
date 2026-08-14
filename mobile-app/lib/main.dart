@@ -35,7 +35,13 @@ Future<void> main() async {
   // so there is no blank window between the two.
   FlutterNativeSplash.preserve(widgetsBinding: binding);
 
-  await _initFirebase();
+  // Web has no `firebase_options.dart`/JS SDK wired in (chat and push aren't
+  // supported there — see AppConfig.demoMode), and initializeApp() on web
+  // hangs rather than throwing when Firebase isn't configured, which stalls
+  // main() before runApp() ever fires.
+  if (!AppConfig.demoMode) {
+    await _initFirebase();
+  }
   await _initStripe();
 
   // Read before the first frame: loading the theme lazily would paint the

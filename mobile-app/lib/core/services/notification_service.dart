@@ -13,12 +13,18 @@ import '../utils/logger.dart';
 /// the bearer token comes from the shared interceptor.
 class NotificationService {
   final AuthService _authService;
-  final FirebaseMessaging _fcm;
+  final FirebaseMessaging? _injectedFcm;
 
   bool _initialised = false;
 
   NotificationService(this._authService, {FirebaseMessaging? messaging})
-      : _fcm = messaging ?? FirebaseMessaging.instance;
+      : _injectedFcm = messaging;
+
+  /// Not read until [init] actually needs it (i.e. never in demo mode) —
+  /// `FirebaseMessaging.instance` calls `Firebase.app()` internally, which
+  /// throws when Firebase was never initialised, as is deliberately the case
+  /// on the web demo build.
+  FirebaseMessaging get _fcm => _injectedFcm ?? FirebaseMessaging.instance;
 
   /// Safe to call more than once — login and auto-login both trigger it.
   Future<void> init() async {

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -503,26 +504,31 @@ class _BookingBar extends StatelessWidget {
         top: false,
         child: Row(
           children: <Widget>[
-            IconButton(
-              onPressed: () => context.goNamed(
-                AppRoutes.chat,
-                pathParameters: <String, String>{
-                  'venueId': venue.id,
-                  'receiverId': venue.ownerId,
-                },
-                queryParameters: <String, String>{'name': 'Venue owner'},
-              ),
-              icon: const Icon(Icons.chat_bubble_outline),
-              tooltip: 'Message the owner',
-              style: IconButton.styleFrom(
-                minimumSize: const Size(52, 52),
-                shape: RoundedRectangleBorder(
-                  borderRadius: AppRadius.mdAll,
-                  side: BorderSide(color: theme.colorScheme.outlineVariant),
+            // Chat is backed by Firestore, which isn't configured for the web
+            // demo build (see AppConfig.demoMode) — hidden there rather than
+            // left as a button that fails when tapped.
+            if (!AppConfig.demoMode) ...<Widget>[
+              IconButton(
+                onPressed: () => context.goNamed(
+                  AppRoutes.chat,
+                  pathParameters: <String, String>{
+                    'venueId': venue.id,
+                    'receiverId': venue.ownerId,
+                  },
+                  queryParameters: <String, String>{'name': 'Venue owner'},
+                ),
+                icon: const Icon(Icons.chat_bubble_outline),
+                tooltip: 'Message the owner',
+                style: IconButton.styleFrom(
+                  minimumSize: const Size(52, 52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppRadius.mdAll,
+                    side: BorderSide(color: theme.colorScheme.outlineVariant),
+                  ),
                 ),
               ),
-            ),
-            AppSpacing.hGapMd,
+              AppSpacing.hGapMd,
+            ],
             Expanded(
               child: AppButton(
                 label: 'Check availability',
